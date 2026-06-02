@@ -19,7 +19,14 @@ async function apiRequest(endpoint, options = {}) {
     headers,
   });
 
+  if (response.status === 401) {
+    localStorage.removeItem('feelm_token');
+    window.location.href = '/';
+    return;
+  }
+
   const data = await response.json();
+
 
   if (!response.ok) {
     throw new Error(data.error || 'Request failed');

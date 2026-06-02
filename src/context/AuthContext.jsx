@@ -8,14 +8,16 @@ export function AuthProvider({ children }) {
   // Sync state initialization directly during useState to avoid mount-time cascading renders
   const [user, setUser] = useState(() => {
     const token = localStorage.getItem('feelm_token');
-    const storedUser = localStorage.getItem('feelm_user');
-    if (token && storedUser) {
+    if (token) {
       try {
-        return JSON.parse(storedUser);
-      } catch (e) {
-        console.error('Failed to parse cached user on initialization:', e);
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp * 1000 > Date.now()) {
+          return { id: payload.id, email: payload.email };
+        } else {
+          localStorage.removeItem('feelm_token');
+        }
+      } catch {
         localStorage.removeItem('feelm_token');
-        localStorage.removeItem('feelm_user');
       }
     }
     return null;
@@ -29,7 +31,6 @@ export function AuthProvider({ children }) {
     try {
       const data = await api.login(email, password);
       localStorage.setItem('feelm_token', data.token);
-      localStorage.setItem('feelm_user', JSON.stringify(data.user));
       setUser(data.user);
       setAuthModalOpen(false);
       return data.user;
@@ -46,7 +47,6 @@ export function AuthProvider({ children }) {
     try {
       const data = await api.register(email, password);
       localStorage.setItem('feelm_token', data.token);
-      localStorage.setItem('feelm_user', JSON.stringify(data.user));
       setUser(data.user);
       setAuthModalOpen(false);
       return data.user;
@@ -60,7 +60,6 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('feelm_token');
-    localStorage.removeItem('feelm_user');
     setUser(null);
   };
 

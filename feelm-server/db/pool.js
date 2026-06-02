@@ -29,25 +29,18 @@ for (const p of possiblePaths) {
   }
 }
 
-let sslConfig = {
-  rejectUnauthorized: false
+if (!caPath) {
+  console.error('FATAL: No CA certificate found. Place ca.crt inside feelm-server/');
+  process.exit(1);
+}
+
+const sslConfig = {
+  rejectUnauthorized: true,
+  ca: fs.readFileSync(caPath).toString()
 };
 
-if (caPath) {
-  try {
-    sslConfig = {
-      rejectUnauthorized: true,
-      ca: fs.readFileSync(caPath).toString()
-    };
-    console.log(`SSL: Loaded CA certificate successfully from ${caPath}`);
-  } catch (e) {
-    console.error(`SSL: Failed to read CA certificate from ${caPath}, using fallback SSL configuration:`, e);
-  }
-} else {
-  console.warn('WARNING: No CA certificate (ca.pem or ca.crt) found.');
-  console.warn('Please place your Aiven SSL certificate inside the "feelm-server" directory.');
-  console.warn('Proceeding with fallback SSL configuration (rejectUnauthorized: false)...');
-}
+console.log(`SSL: Loaded CA certificate successfully from ${caPath}`);
+
 
 export const pool = new Pool({
   host: process.env.DB_HOST,

@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Security Credentials & Env Files
+feelm-server/.env
+feelm-server/ca.crt
+feelm-server/ca.pem
+.env
+.env.local
+.env.*.local
+
