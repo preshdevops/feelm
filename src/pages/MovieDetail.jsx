@@ -2,6 +2,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { placeholderMovies } from '../utils/placeholderMovies';
 import { getMovieDetails, isTmdbConfigured } from '../utils/tmdb';
+import { useAuth } from '../context/AuthContext';
+import useWatchlist from '../hooks/useWatchlist';
 
 export default function MovieDetail() {
   const { id } = useParams();
@@ -9,6 +11,28 @@ export default function MovieDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
+
+  const { user, setAuthModalOpen } = useAuth();
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const bookmarked = movie ? isInWatchlist(movie.id || movie.movie_id) : false;
+
+  const handleSaveClick = async () => {
+    if (!user) {
+      setAuthModalOpen(true);
+      return;
+    }
+
+    try {
+      if (bookmarked) {
+        await removeFromWatchlist(movie.id || movie.movie_id);
+      } else {
+        await addToWatchlist(movie);
+      }
+    } catch (err) {
+      console.error('Failed to toggle watchlist item:', err);
+    }
+  };
+
 
   useEffect(() => {
     async function loadDetails() {
@@ -189,9 +213,14 @@ export default function MovieDetail() {
               
               <button
                 id="save-movie-btn"
-                className="btn-editorial px-8 py-3.5 uppercase tracking-widest text-xs font-semibold"
+                onClick={handleSaveClick}
+                className={`px-8 py-3.5 uppercase tracking-widest text-xs font-semibold rounded-none transition-all duration-300 ease-out ${
+                  bookmarked
+                    ? 'bg-accent/10 text-accent border border-accent hover:bg-accent/20'
+                    : 'btn-editorial'
+                }`}
               >
-                Save Film
+                {bookmarked ? 'Saved' : 'Save Film'}
               </button>
             </div>
           </div>
