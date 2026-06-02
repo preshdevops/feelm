@@ -4,7 +4,7 @@ import MovieCard from '../components/MovieCard';
 import { placeholderMovies } from '../utils/placeholderMovies';
 import { moods } from '../utils/moods';
 import { isTmdbConfigured, searchMovie, getTrendingMovies } from '../utils/tmdb';
-import { isGeminiConfigured, getRecommendationsFromGemini } from '../utils/gemini';
+import { isGeminiConfigured, getRecommendationsFromGemini, generateMovieBlurb } from '../utils/gemini';
 
 // Helper to map TMDB genre IDs to strings
 const TMDB_GENRES = {
@@ -59,6 +59,8 @@ export default function Results() {
       }
 
       try {
+        let rawMovies = [];
+
         if (aiReady) {
           // Gemini AI recommendations flow
           const moodLabel = selectedMood ? selectedMood.label : '';
@@ -73,8 +75,8 @@ export default function Results() {
             (feeling || '') + shuffleSeed
           );
           
-          // Search each recommendation on TMDB in parallel
-          const moviePromises = aiRecommendations.map(async (rec) => {
+          // Search each recommendation on TMDB in parallel (using TMDB search)
+          const tmdbPromises = aiRecommendations.map(async (rec) => {
             const tmdbMovie = await searchMovie(rec.title);
             if (tmdbMovie) {
               return {
@@ -87,25 +89,67 @@ export default function Results() {
                   ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}`
                   : 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop',
                 overview: tmdbMovie.overview || 'No overview available.',
-                reason: rec.reason
               };
             }
             return null;
           });
 
-          const resolvedMovies = await Promise.all(moviePromises);
-          const filteredMovies = resolvedMovies.filter(m => m !== null);
-
-          if (filteredMovies.length === 0) {
-            throw new Error('No matching movies found.');
-          }
-
-          setMovies(filteredMovies);
-        } else {
+          const resolvedMovies = await Promise.all(tmdbPromises);
+          rawMovies = resolvedMovies.filter(m => m !== null);
+        } else if (tmdbOnly) {
           // TMDB-only configuration (no Gemini key) - Fetch randomized page of trending
           const randomPage = Math.floor(Math.random() * 15) + 1;
-          const trending = await getTrendingMovies(randomPage);
-          setMovies(trending);
+          rawMovies = await getTrendingMovies(randomPage);
+        }
+
+        if (rawMovies.length === 0) {
+          throw new Error('No matching movies found.');
+        }
+
+        // Sequential Gemini blurb generation with 500ms delay & localStorage caching
+        const enrichedMovies = [];
+        const moodLabel = selectedMood ? selectedMood.label : '';
+        let apiCallMade = false;
+
+        for (let i = 0; i < rawMovies.length; i++) {
+          const movie = rawMovies[i];
+          const cacheKey = `feelm-blurb-${movie.id}`;
+          let blurb = null;
+
+          try {
+            blurb = localStorage.getItem(cacheKey);
+          } catch (e) {
+            console.warn('localStorage read failed:', e);
+          }
+
+          // If not in cache and Gemini is configured, fetch blurb sequentially with delay
+          if (!blurb && isGeminiConfigured()) {
+            if (apiCallMade) {
+              await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+
+            try {
+              blurb = await generateMovieBlurb(movie, moodLabel, feeling);
+              if (blurb) {
+                try {
+                  localStorage.setItem(cacheKey, blurb);
+                } catch (e) {
+                  console.warn('localStorage write failed:', e);
+                }
+              }
+              apiCallMade = true;
+            } catch (err) {
+              console.error(`Failed to generate blurb for movie "${movie.title}":`, err);
+            }
+          }
+
+          enrichedMovies.push({
+            ...movie,
+            reason: blurb || movie.overview // fallback to overview if blurb fails or Gemini is unavailable
+          });
+
+          // Update state progressively so that recommendations render sequentially!
+          setMovies([...enrichedMovies]);
         }
       } catch (err) {
         console.error('Failed to load AI recommendations:', err);
