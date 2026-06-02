@@ -1,6 +1,7 @@
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-1.5-flash';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+// List of Gemini models to try in sequence to handle 404 (model availability) errors
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
 export const isGeminiConfigured = () => {
   return (
@@ -12,6 +13,7 @@ export const isGeminiConfigured = () => {
 
 /**
  * Gets movie recommendations from Gemini based on the user's mood and feeling text.
+ * Tries multiple model versions to robustly bypass model-specific 404 errors.
  * @param {string} mood - Selected mood label (e.g., Happy, Sad, Stressed)
  * @param {string} feelingText - Freeform user input describing how they feel
  * @returns {Promise<Array<{title: string, reason: string}>>}
@@ -46,49 +48,67 @@ export async function getRecommendationsFromGemini(mood, feelingText) {
     Do not wrap your output in markdown code blocks (like \`\`\`json). Return raw JSON only.
   `;
 
-  try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.7,
+  let lastError = null;
+
+  // Try models in order
+  for (const model of GEMINI_MODELS) {
+    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    
+    try {
+      console.log(`Attempting Gemini recommendations using model: ${model}`);
+      const response = await fetch(apiURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.7,
+          },
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`Gemini API failed with status: ${response.status}`);
-    }
+      if (response.status === 404) {
+        console.warn(`Model ${model} returned 404. Trying next fallback...`);
+        continue; // Try next model
+      }
 
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!text) {
-      throw new Error('Empty response from Gemini API.');
-    }
+      if (!response.ok) {
+        throw new Error(`Gemini API failed with status: ${response.status}`);
+      }
 
-    // Parse response
-    const recommendations = JSON.parse(text.trim());
-    if (Array.isArray(recommendations)) {
-      return recommendations;
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!text) {
+        throw new Error('Empty response from Gemini API.');
+      }
+
+      // Parse response
+      const recommendations = JSON.parse(text.trim());
+      if (Array.isArray(recommendations)) {
+        console.log(`Successfully fetched recommendations using model: ${model}`);
+        return recommendations;
+      }
+      
+      throw new Error('Gemini did not return an array.');
+    } catch (error) {
+      console.error(`Error with model ${model}:`, error);
+      lastError = error;
+      // Continue loop to try fallback models
     }
-    
-    throw new Error('Gemini did not return an array.');
-  } catch (error) {
-    console.error('Error fetching recommendations from Gemini:', error);
-    throw error;
   }
+
+  // If all models failed, throw the last encountered error
+  throw lastError || new Error('All Gemini model fallbacks failed.');
 }
