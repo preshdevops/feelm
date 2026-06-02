@@ -1,7 +1,7 @@
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // List of Gemini models to try in sequence to handle 404 (model availability) errors
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.1-flash'];
 
 export const isGeminiConfigured = () => {
   return (
