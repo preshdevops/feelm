@@ -6,58 +6,70 @@ import { moods } from '../utils/moods';
 export default function MoodPicker() {
   const [selectedMood, setSelectedMood] = useState(null);
   const [feelingText, setFeelingText] = useState('');
+  const [avoidFilters, setAvoidFilters] = useState([]);
+  const [eraFilter, setEraFilter] = useState('Either');
   const navigate = useNavigate();
 
   const handleMoodClick = (moodId) => {
     setSelectedMood((prev) => (prev === moodId ? null : moodId));
   };
 
+  const toggleAvoidFilter = (filter) => {
+    setAvoidFilters((prev) =>
+      prev.includes(filter)
+        ? prev.filter((item) => item !== filter)
+        : [...prev, filter]
+    );
+  };
+
   const handleSubmit = () => {
     const params = new URLSearchParams();
     if (selectedMood) params.set('mood', selectedMood);
-    if (feelingText.trim()) params.set('feeling', feelingText.trim());
+
+    // Dynamic prompt construction to pass selections cleanly to Gemini/TMDB
+    let finalFeeling = feelingText.trim();
+    if (avoidFilters.length > 0) {
+      finalFeeling += `${finalFeeling ? '. ' : ''}Strictly avoid these elements: ${avoidFilters.join(', ')}`;
+    }
+    if (eraFilter !== 'Either') {
+      finalFeeling += `${finalFeeling ? '. ' : ''}Only recommend films that are: ${
+        eraFilter === 'New' ? 'released after 2015 (Modern)' : 'released before 2000 (Classic)'
+      }`;
+    }
+
+    if (finalFeeling.trim()) params.set('feeling', finalFeeling.trim());
     navigate(`/results?${params.toString()}`);
   };
 
   const isReady = selectedMood || feelingText.trim();
 
   return (
-    <div className="w-full max-w-3xl mx-auto animate-fade-in">
-      {/* Section header */}
-      <div className="text-center mb-8">
-        <h2 className="section-title mb-3">How are you feeling?</h2>
-        <p className="text-gray-400 text-lg font-light">
-          Pick a mood or describe your vibe — we'll find the perfect film.
-        </p>
+    <div className="w-full max-w-2xl mx-auto animate-fade-in space-y-8">
+      {/* Mood grid as tag wrap */}
+      <div className="space-y-3">
+        <span className="text-xs uppercase tracking-widest text-cinema-500 font-mono block text-center sm:text-left">
+          Select your mood
+        </span>
+        <div
+          id="mood-grid"
+          className="flex flex-wrap gap-2.5 justify-center sm:justify-start"
+        >
+          {moods.map((mood) => (
+            <MoodCard
+              key={mood.id}
+              mood={mood}
+              isSelected={selectedMood === mood.id}
+              onClick={handleMoodClick}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Mood grid */}
-      <div
-        id="mood-grid"
-        className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8"
-      >
-        {moods.map((mood) => (
-          <MoodCard
-            key={mood.id}
-            mood={mood}
-            isSelected={selectedMood === mood.id}
-            onClick={handleMoodClick}
-          />
-        ))}
-      </div>
-
-      {/* Divider */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <span className="text-gray-500 text-sm font-medium uppercase tracking-widest">or</span>
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      </div>
-
-      {/* Text input */}
-      <div className="mb-8">
-        <label htmlFor="feeling-input" className="sr-only">
-          Describe how you're feeling
-        </label>
+      {/* Search Input for describing vibe */}
+      <div className="space-y-3">
+        <span className="text-xs uppercase tracking-widest text-cinema-500 font-mono block text-center sm:text-left">
+          Or express your vibe
+        </span>
         <div className="relative">
           <input
             id="feeling-input"
@@ -65,32 +77,83 @@ export default function MoodPicker() {
             value={feelingText}
             onChange={(e) => setFeelingText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && isReady && handleSubmit()}
-            placeholder="Or just tell us how you're feeling..."
-            className="input-field pr-12"
+            placeholder="or just tell us how you're feeling..."
+            className="minimal-search"
           />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
-            💬
-          </div>
         </div>
       </div>
 
-      {/* CTA button */}
-      <div className="text-center">
-        <button
-          id="find-movie-btn"
-          onClick={handleSubmit}
-          disabled={!isReady}
-          className={`btn-primary text-base sm:text-lg px-10 py-4
-                     ${!isReady 
-                       ? 'opacity-40 cursor-not-allowed hover:scale-100 hover:shadow-none' 
-                       : ''}`}
-        >
-          <span className="relative z-10 flex items-center gap-2">
-            <span>🎬</span>
-            <span>Find My Movie</span>
-          </span>
-        </button>
-      </div>
+      {/* Follow-up inline rows if mood selected */}
+      {selectedMood && (
+        <div className="space-y-6 pt-2 border-t border-white/5 animate-fade-in">
+          {/* Avoid row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span className="text-xs uppercase tracking-widest text-cinema-400 font-mono">
+              Anything to avoid?
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {['Violence', 'Romance', 'Horror', 'Animation'].map((filter) => {
+                const isSelected = avoidFilters.includes(filter);
+                return (
+                  <button
+                    key={filter}
+                    onClick={() => toggleAvoidFilter(filter)}
+                    className={`px-3 py-1.5 text-xs font-body font-medium transition-all duration-200 border cursor-pointer
+                      ${isSelected 
+                        ? 'bg-white text-black border-white' 
+                        : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-white'}`}
+                  >
+                    {filter}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Era row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span className="text-xs uppercase tracking-widest text-cinema-400 font-mono">
+              New or classic?
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'New', label: 'New (post 2015)' },
+                { value: 'Classic', label: 'Classic (pre 2000)' },
+                { value: 'Either', label: 'Either' }
+              ].map((opt) => {
+                const isSelected = eraFilter === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setEraFilter(opt.value)}
+                    className={`px-3 py-1.5 text-xs font-body font-medium transition-all duration-200 border cursor-pointer
+                      ${isSelected 
+                        ? 'bg-white text-black border-white' 
+                        : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-white'}`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CTA Button */}
+      {isReady && (
+        <div className="text-center sm:text-left pt-2 animate-fade-in">
+          <button
+            id="find-movie-btn"
+            onClick={handleSubmit}
+            className="inline-flex items-center justify-center px-8 py-3.5
+                       bg-accent hover:bg-accent-hover text-black font-body font-semibold text-sm
+                       uppercase tracking-widest transition-colors duration-300"
+          >
+            Find my film →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

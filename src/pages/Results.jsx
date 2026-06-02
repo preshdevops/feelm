@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import MovieCard from '../components/MovieCard';
 import { placeholderMovies } from '../utils/placeholderMovies';
 import { moods } from '../utils/moods';
-import { isTmdbConfigured, searchMovie } from '../utils/tmdb';
+import { isTmdbConfigured, searchMovie, getTrendingMovies } from '../utils/tmdb';
 import { isGeminiConfigured, getRecommendationsFromGemini } from '../utils/gemini';
 
 // Helper to map TMDB genre IDs to strings
@@ -19,6 +19,16 @@ function getGenreNames(genreIds) {
   return genreIds.slice(0, 2).map(id => TMDB_GENRES[id] || 'Drama').join(', ');
 }
 
+// Fisher-Yates shuffle helper for Demo Mode
+const shuffleArray = (array) => {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
 export default function Results() {
   const [searchParams] = useSearchParams();
   const moodId = searchParams.get('mood');
@@ -27,7 +37,7 @@ export default function Results() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [shuffleCount, setShuffleCount] = useState(0);
 
   const selectedMood = moods.find((m) => m.id === moodId);
 
@@ -37,141 +47,143 @@ export default function Results() {
       setError(null);
 
       const aiReady = isTmdbConfigured() && isGeminiConfigured();
+      const tmdbOnly = isTmdbConfigured() && !isGeminiConfigured();
 
-      if (!aiReady) {
-        // Fallback to Demo Mode
-        setIsDemoMode(true);
-        // Simulate local network delay
+      if (!aiReady && !tmdbOnly) {
+        // Full Demo Mode (no keys) - Shuffle local mock array
         setTimeout(() => {
-          setMovies(placeholderMovies);
+          setMovies(shuffleArray(placeholderMovies));
           setLoading(false);
-        }, 800);
+        }, 600);
         return;
       }
 
       try {
-        setIsDemoMode(false);
-        // Get recommendations list from Gemini
-        const moodLabel = selectedMood ? selectedMood.label : '';
-        const aiRecommendations = await getRecommendationsFromGemini(moodLabel, feeling);
-        
-        // Search each recommendation on TMDB in parallel
-        const moviePromises = aiRecommendations.map(async (rec) => {
-          const tmdbMovie = await searchMovie(rec.title);
-          if (tmdbMovie) {
-            return {
-              id: tmdbMovie.id,
-              title: tmdbMovie.title,
-              year: tmdbMovie.release_date ? new Date(tmdbMovie.release_date).getFullYear() : 'N/A',
-              rating: tmdbMovie.vote_average ? Number(tmdbMovie.vote_average.toFixed(1)) : 'N/A',
-              genre: getGenreNames(tmdbMovie.genre_ids),
-              poster: tmdbMovie.poster_path 
-                ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}`
-                : 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop',
-              overview: tmdbMovie.overview || 'No overview available.',
-              reason: rec.reason
-            };
+        if (aiReady) {
+          // Gemini AI recommendations flow
+          const moodLabel = selectedMood ? selectedMood.label : '';
+          
+          // Seed the prompt with a shuffle marker if shuffling to force new results
+          const shuffleSeed = shuffleCount > 0 
+            ? ` (Provide completely different suggestions than previous attempts. Shuffle key: ${Math.random()})` 
+            : '';
+          
+          const aiRecommendations = await getRecommendationsFromGemini(
+            moodLabel, 
+            (feeling || '') + shuffleSeed
+          );
+          
+          // Search each recommendation on TMDB in parallel
+          const moviePromises = aiRecommendations.map(async (rec) => {
+            const tmdbMovie = await searchMovie(rec.title);
+            if (tmdbMovie) {
+              return {
+                id: tmdbMovie.id,
+                title: tmdbMovie.title,
+                year: tmdbMovie.release_date ? new Date(tmdbMovie.release_date).getFullYear() : 'N/A',
+                rating: tmdbMovie.vote_average ? Number(tmdbMovie.vote_average.toFixed(1)) : 'N/A',
+                genre: getGenreNames(tmdbMovie.genre_ids),
+                poster: tmdbMovie.poster_path 
+                  ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}`
+                  : 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop',
+                overview: tmdbMovie.overview || 'No overview available.',
+                reason: rec.reason
+              };
+            }
+            return null;
+          });
+
+          const resolvedMovies = await Promise.all(moviePromises);
+          const filteredMovies = resolvedMovies.filter(m => m !== null);
+
+          if (filteredMovies.length === 0) {
+            throw new Error('No matching movies found.');
           }
-          return null;
-        });
 
-        const resolvedMovies = await Promise.all(moviePromises);
-        const filteredMovies = resolvedMovies.filter(m => m !== null);
-
-        if (filteredMovies.length === 0) {
-          throw new Error('No matching movies found on TMDB.');
+          setMovies(filteredMovies);
+        } else {
+          // TMDB-only configuration (no Gemini key) - Fetch randomized page of trending
+          const randomPage = Math.floor(Math.random() * 15) + 1;
+          const trending = await getTrendingMovies(randomPage);
+          setMovies(trending);
         }
-
-        setMovies(filteredMovies);
       } catch (err) {
         console.error('Failed to load AI recommendations:', err);
-        setError(err.message || 'Something went wrong while generating recommendations.');
-        // Fall back to Demo Mode
-        setIsDemoMode(true);
-        setMovies(placeholderMovies);
+        setError(err.message || 'Unable to retrieve film list.');
+        // Graceful fallback to shuffled local placeholders
+        setMovies(shuffleArray(placeholderMovies));
       } finally {
         setLoading(false);
       }
     }
 
     fetchVibeMovies();
-  }, [moodId, feeling, selectedMood]);
+  }, [moodId, feeling, selectedMood, shuffleCount]);
+
+  const handleShuffle = () => {
+    setShuffleCount((prev) => prev + 1);
+  };
+
+  const getDynamicTitle = () => {
+    if (selectedMood) {
+      return `Films for when you're feeling ${selectedMood.label.toLowerCase()}`;
+    }
+    if (feeling) {
+      // Clean up filters text from display title
+      const cleanFeeling = feeling.split('Strictly avoid')[0].split('Only recommend')[0].trim();
+      return `Films matching "${cleanFeeling}"`;
+    }
+    return 'Film recommendations';
+  };
 
   return (
-    <div className="page-container pt-24 pb-16">
+    <div className="page-container pt-20 pb-20 bg-cinema-950">
       <div className="content-container">
-        {/* Header */}
-        <div className="mb-10 animate-fade-in">
+        {/* Header Navigation */}
+        <div className="flex items-center justify-between mb-12 animate-fade-in">
           <Link
             to="/"
             id="back-to-home"
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-gold 
-                       transition-colors duration-300 mb-6 group"
+            className="inline-flex items-center gap-1.5 text-cinema-500 hover:text-white transition-colors duration-200 text-xs font-mono uppercase tracking-widest"
           >
-            <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" 
-                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="text-sm font-medium">Back to moods</span>
+            ← Back to moods
           </Link>
 
-          {/* Demo Mode Notice Banner */}
-          {isDemoMode && (
-            <div className="mb-6 p-4 rounded-xl border border-gold/20 bg-gold/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h4 className="text-gold font-semibold text-sm sm:text-base">🍿 Running in Demo Mode</h4>
-                <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-                  Set your <code className="text-gold">VITE_GEMINI_API_KEY</code> and <code className="text-gold">VITE_TMDB_API_KEY</code> in <code className="text-gold">.env.local</code> to fetch real-time AI recommendations.
-                </p>
-              </div>
-              <span className="text-xs px-2.5 py-1 rounded bg-gold/20 text-gold-light border border-gold/30 font-medium self-start sm:self-center">
-                Demo Active
-              </span>
-            </div>
-          )}
+          {/* Shuffle Button Top Right */}
+          <button
+            onClick={handleShuffle}
+            disabled={loading}
+            className="px-4 py-2 border border-white/10 hover:border-white text-xs text-white uppercase tracking-widest transition-colors duration-200 font-mono disabled:opacity-30 disabled:hover:border-white/10"
+          >
+            {loading ? 'Refetching...' : 'Shuffle ↺'}
+          </button>
+        </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <h1 className="section-title">Your Picks</h1>
-            {selectedMood && (
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-sm">
-                <span>{selectedMood.emoji}</span>
-                <span className="text-gray-300">{selectedMood.label} mood</span>
-              </span>
-            )}
-            {feeling && (
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-sm">
-                <span>💬</span>
-                <span className="text-gray-300 line-clamp-1 max-w-[200px]">&ldquo;{feeling}&rdquo;</span>
-              </span>
-            )}
-          </div>
-
-          {!loading && !error && (
-            <p className="text-gray-400 mt-3 text-lg">
-              We found <span className="text-gold font-semibold">{movies.length} films</span> that match your vibe.
-            </p>
-          )}
-
+        {/* Dynamic Title */}
+        <div className="mb-12 animate-fade-in">
+          <h1 className="editorial-title font-display font-medium text-white max-w-3xl leading-tight">
+            {getDynamicTitle()}
+          </h1>
           {error && (
-            <p className="text-red-400 mt-3 text-sm">
-              ⚠️ {error} — Falling back to static curation.
+            <p className="text-xs font-mono text-cinema-500 mt-3 uppercase tracking-wide">
+              * Note: {error} (Static curation loaded)
             </p>
           )}
         </div>
 
-        {/* Dynamic content rendering */}
+        {/* Dynamic Grid: 5 columns on desktop, 2 on mobile */}
         {loading ? (
           <SkeletonLoader />
         ) : (
           <div
             id="movie-results-grid"
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6"
           >
             {movies.map((movie, index) => (
               <div
-                key={movie.id}
+                key={`${movie.id}-${index}`}
                 className="animate-slide-up"
-                style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
+                style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'both' }}
               >
                 <MovieCard movie={movie} />
               </div>
@@ -183,19 +195,15 @@ export default function Results() {
   );
 }
 
-// Cinematic skeleton animation card grid
+// Flat film-festival styled skeleton loading grid
 function SkeletonLoader() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
       {[...Array(5)].map((_, i) => (
-        <div key={i} className="bg-cinema-900/50 border border-white/5 rounded-2xl overflow-hidden animate-pulse">
-          <div className="aspect-[2/3] bg-cinema-800" />
-          <div className="p-4 space-y-3">
-            <div className="h-4 bg-cinema-700 rounded w-3/4" />
-            <div className="h-3 bg-cinema-800 rounded w-1/2" />
-            <div className="h-10 bg-cinema-800/50 rounded w-full mt-2" />
-          </div>
-        </div>
+        <div 
+          key={i} 
+          className="w-full aspect-[2/3] bg-cinema-900 border border-white/5 animate-pulse"
+        />
       ))}
     </div>
   );

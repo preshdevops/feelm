@@ -5,51 +5,36 @@ export default function MovieCard({ movie }) {
     <Link
       to={`/movie/${movie.id}`}
       id={`movie-card-${movie.id}`}
-      className="movie-card group block"
+      className="relative block w-full aspect-[2/3] overflow-hidden group bg-cinema-800 border border-white/10 transition-all duration-300"
     >
-      {/* Poster */}
-      <div className="relative aspect-[2/3] overflow-hidden">
-        <div className="absolute inset-0 bg-cinema-800 animate-pulse-soft" />
-        <img
-          src={movie.poster}
-          alt={movie.title}
-          loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover
-                     group-hover:scale-110 transition-transform duration-700 ease-out"
-        />
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-cinema-950 via-cinema-950/20 to-transparent 
-                        opacity-60 group-hover:opacity-80 transition-opacity duration-300" />
+      {/* Poster Image */}
+      <img
+        src={movie.poster}
+        alt={movie.title}
+        loading="lazy"
+        className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+      />
 
-        {/* Rating badge */}
-        <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 
-                        rounded-lg glass text-sm font-semibold">
-          <span className="text-gold">★</span>
-          <span className="text-white">{movie.rating}</span>
-        </div>
-      </div>
+      {/* Hover Overlay */}
+      <div className="absolute inset-0 bg-black/85 flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out">
+        <div className="space-y-2.5 translate-y-3 group-hover:translate-y-0 transition-transform duration-300 ease-out">
+          {/* Title */}
+          <h3 className="font-display italic text-lg sm:text-xl font-semibold text-white leading-snug">
+            {movie.title}
+          </h3>
 
-      {/* Info */}
-      <div className="p-4">
-        <h3 className="font-display font-semibold text-white text-base sm:text-lg 
-                       group-hover:text-gold transition-colors duration-300 line-clamp-1">
-          {movie.title}
-        </h3>
-        <div className="flex items-center gap-2 mt-1.5 text-sm text-gray-400">
-          <span>{movie.year}</span>
-          <span className="w-1 h-1 rounded-full bg-gray-600" />
-          <span className="line-clamp-1">{movie.genre}</span>
-        </div>
-        <p className="mt-2 text-sm text-gray-500 line-clamp-2 leading-relaxed">
-          {movie.overview}
-        </p>
-        
-        {/* AI Vibe Match Reason */}
-        {movie.reason && (
-          <div className="mt-3 text-xs text-gold-light bg-gold/5 border border-gold/10 rounded-lg p-2 leading-relaxed font-light animate-fade-in">
-            <span className="font-semibold text-gold">Vibe Match:</span> {movie.reason}
+          {/* Meta Info */}
+          <div className="flex items-center gap-2 text-xs font-mono text-cinema-400">
+            <span>{movie.year}</span>
+            <span>•</span>
+            <span className="text-accent font-semibold">★ {movie.rating}</span>
           </div>
-        )}
+
+          {/* Vibe/Reason Blurb */}
+          <p className="text-xs text-cinema-300 leading-relaxed font-light line-clamp-4">
+            {movie.reason ? movie.reason : movie.overview}
+          </p>
+        </div>
       </div>
     </Link>
   );

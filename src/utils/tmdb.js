@@ -102,14 +102,14 @@ export async function getMovieDetails(id) {
  * Fetches popular trending movies as a fallback.
  * @returns {Promise<Array>}
  */
-export async function getTrendingMovies() {
+export async function getTrendingMovies(page = 1) {
   if (!isTmdbConfigured()) {
     throw new Error('TMDB API Key is not configured.');
   }
 
   try {
     const response = await fetch(
-      `${TMDB_BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}&language=en-US`
+      `${TMDB_BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`
     );
     if (!response.ok) {
       throw new Error(`TMDB trending failed with status: ${response.status}`);
