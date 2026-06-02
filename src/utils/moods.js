@@ -1,0 +1,58 @@
+export const moods = [
+  {
+    id: 'happy',
+    label: 'Happy',
+    emoji: '😊',
+    color: 'from-yellow-400 to-orange-400',
+    glow: 'shadow-yellow-400/20',
+  },
+  {
+    id: 'sad',
+    label: 'Sad',
+    emoji: '😢',
+    color: 'from-blue-400 to-indigo-400',
+    glow: 'shadow-blue-400/20',
+  },
+  {
+    id: 'stressed',
+    label: 'Stressed',
+    emoji: '😤',
+    color: 'from-red-400 to-rose-400',
+    glow: 'shadow-red-400/20',
+  },
+  {
+    id: 'romantic',
+    label: 'Romantic',
+    emoji: '🥰',
+    color: 'from-pink-400 to-rose-300',
+    glow: 'shadow-pink-400/20',
+  },
+  {
+    id: 'adventurous',
+    label: 'Adventurous',
+    emoji: '🤠',
+    color: 'from-emerald-400 to-teal-400',
+    glow: 'shadow-emerald-400/20',
+  },
+  {
+    id: 'bored',
+    label: 'Bored',
+    emoji: '😑',
+    color: 'from-gray-400 to-slate-400',
+    glow: 'shadow-gray-400/20',
+  },
+  {
+    id: 'inspired',
+    label: 'Inspired',
+    emoji: '✨',
+    color: 'from-amber-400 to-yellow-300',
+    glow: 'shadow-amber-400/20',
+  },
+  {
+    id: 'scared',
+    label: 'Scared',
+    emoji: '😱',
+    color: 'from-purple-400 to-violet-400',
+    glow: 'shadow-purple-400/20',
+  },
+];
