@@ -43,6 +43,13 @@ export default function MovieCard({ movie }) {
         <p className="mt-2 text-sm text-gray-500 line-clamp-2 leading-relaxed">
           {movie.overview}
         </p>
+        
+        {/* AI Vibe Match Reason */}
+        {movie.reason && (
+          <div className="mt-3 text-xs text-gold-light bg-gold/5 border border-gold/10 rounded-lg p-2 leading-relaxed font-light animate-fade-in">
+            <span className="font-semibold text-gold">Vibe Match:</span> {movie.reason}
+          </div>
+        )}
       </div>
     </Link>
   );
