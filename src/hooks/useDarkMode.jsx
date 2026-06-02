@@ -2,8 +2,12 @@ import { useState, useEffect } from 'react';
 
 export function useDarkMode() {
   const [isDark, setIsDark] = useState(() => {
-    const stored = localStorage.getItem('feelm-theme');
-    if (stored) return stored === 'dark';
+    try {
+      const stored = localStorage.getItem('feelm-theme');
+      if (stored) return stored === 'dark';
+    } catch (e) {
+      console.warn('localStorage is not available:', e);
+    }
     return true; // default dark
   });
 
@@ -16,7 +20,11 @@ export function useDarkMode() {
       root.classList.remove('dark');
       root.classList.add('light');
     }
-    localStorage.setItem('feelm-theme', isDark ? 'dark' : 'light');
+    try {
+      localStorage.setItem('feelm-theme', isDark ? 'dark' : 'light');
+    } catch (e) {
+      console.warn('localStorage is not available:', e);
+    }
   }, [isDark]);
 
   const toggle = () => setIsDark((prev) => !prev);
