@@ -1,25 +1,22 @@
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-// List of Gemini models to try in sequence to handle 404 (model availability) errors
-const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
 export const isGeminiConfigured = () => {
   return (
-    GEMINI_API_KEY &&
-    GEMINI_API_KEY !== 'your_gemini_key_here' &&
-    GEMINI_API_KEY.trim() !== ''
+    GROQ_API_KEY &&
+    GROQ_API_KEY !== 'your_groq_key_here' &&
+    GROQ_API_KEY.trim() !== ''
   );
 };
 
 /**
- * Gets movie recommendations (list of titles) from Gemini based on the user's mood and feeling text.
+ * Gets movie recommendations (list of titles) from Groq based on the user's mood and feeling text.
  * @param {string} mood - Selected mood label (e.g., Happy, Sad, Stressed)
  * @param {string} feelingText - Freeform user input describing how they feel
  * @returns {Promise<Array<{title: string}>>}
  */
 export async function getRecommendationsFromGemini(mood, feelingText) {
   if (!isGeminiConfigured()) {
-    throw new Error('Gemini API Key is not configured.');
+    throw new Error('Groq API Key is not configured.');
   }
 
   const prompt = `
@@ -44,64 +41,38 @@ export async function getRecommendationsFromGemini(mood, feelingText) {
     Do not wrap your output in markdown code blocks. Return raw JSON only.
   `;
 
-  let lastError = null;
+  const apiURL = 'https://api.groq.com/openai/v1/chat/completions';
+  
+  const response = await fetch(apiURL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GROQ_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'llama3-8b-8192',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7
+    })
+  });
 
-  for (const model of GEMINI_MODELS) {
-    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-    
-    try {
-      console.log(`Attempting list query using model: ${model}`);
-      const response = await fetch(apiURL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.7,
-          },
-        }),
-      });
-
-      if (response.status === 404) {
-        console.warn(`Model ${model} returned 404. Trying fallback...`);
-        continue;
-      }
-
-      if (!response.ok) {
-        throw new Error(`Gemini API failed with status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      if (!text) {
-        throw new Error('Empty response from Gemini API.');
-      }
-
-      const recommendations = JSON.parse(text.trim());
-      if (Array.isArray(recommendations)) {
-        return recommendations;
-      }
-      
-      throw new Error('Gemini did not return an array.');
-    } catch (error) {
-      console.error(`Error with model ${model}:`, error);
-      lastError = error;
-    }
+  if (!response.ok) {
+    throw new Error(`Groq API failed with status: ${response.status}`);
   }
 
-  throw lastError || new Error('All Gemini model fallbacks failed.');
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  
+  if (!text) {
+    throw new Error('Empty response from Groq API.');
+  }
+
+  const recommendations = JSON.parse(text.trim());
+  if (Array.isArray(recommendations)) {
+    return recommendations;
+  }
+  
+  throw new Error('Groq did not return an array.');
 }
 
 /**
@@ -112,8 +83,21 @@ export async function getRecommendationsFromGemini(mood, feelingText) {
  * @returns {Promise<string>} - The custom blurb text
  */
 export async function generateMovieBlurb(movie, mood, feeling) {
+  const movieId = movie.id || movie.movie_id;
+  const cacheKey = `feelm_blurb_${movieId}`;
+
+  // Check localStorage first
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  } catch (e) {
+    console.warn('localStorage read failed in generateMovieBlurb:', e);
+  }
+
   if (!isGeminiConfigured()) {
-    throw new Error('Gemini API Key is not configured.');
+    throw new Error('Groq API Key is not configured.');
   }
 
   const prompt = `
@@ -132,50 +116,37 @@ export async function generateMovieBlurb(movie, mood, feeling) {
     - Return ONLY the raw blurb text. Do not wrap in markdown or quotes.
   `;
 
-  for (const model of GEMINI_MODELS) {
-    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-    
-    try {
-      console.log(`Attempting blurb query for "${movie.title}" using model: ${model}`);
-      const response = await fetch(apiURL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.6,
-          },
-        }),
-      });
+  const apiURL = 'https://api.groq.com/openai/v1/chat/completions';
+  
+  const response = await fetch(apiURL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GROQ_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'llama3-8b-8192',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.6
+    })
+  });
 
-      if (response.status === 404) {
-        continue;
-      }
-
-      if (!response.ok) {
-        throw new Error(`Status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      if (text) {
-        return text.trim();
-      }
-    } catch (error) {
-      console.error(`Error with model ${model} in generateMovieBlurb:`, error);
-    }
+  if (!response.ok) {
+    throw new Error(`Status: ${response.status}`);
   }
 
-  throw new Error(`All models failed to generate blurb for "${movie.title}".`);
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  
+  if (text) {
+    const blurb = text.trim();
+    try {
+      localStorage.setItem(cacheKey, blurb);
+    } catch (e) {
+      console.warn('localStorage write failed in generateMovieBlurb:', e);
+    }
+    return blurb;
+  }
+
+  throw new Error(`Failed to generate blurb for "${movie.title}".`);
 }

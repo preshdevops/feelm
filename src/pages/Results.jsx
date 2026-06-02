@@ -106,26 +106,26 @@ export default function Results() {
           throw new Error('No matching movies found.');
         }
 
-        // Sequential Gemini blurb generation with 500ms delay & localStorage caching
+        // Sequential blurb generation with 300ms delay & localStorage caching (first 5 movies only)
         const enrichedMovies = [];
         const moodLabel = selectedMood ? selectedMood.label : '';
         let apiCallMade = false;
 
         for (let i = 0; i < rawMovies.length; i++) {
           const movie = rawMovies[i];
-          const cacheKey = `feelm-blurb-${movie.id}`;
+          const cacheKey = `feelm_blurb_${movie.id}`;
           let blurb = null;
 
           try {
             blurb = localStorage.getItem(cacheKey);
-          } catch (e) {
-            console.warn('localStorage read failed:', e);
+          } catch {
+            console.warn('localStorage read failed');
           }
 
-          // If not in cache and Gemini is configured, fetch blurb sequentially with delay
-          if (!blurb && isGeminiConfigured()) {
+          // Only generate blurbs for the first 5 movies if not in cache
+          if (!blurb && i < 5 && isGeminiConfigured()) {
             if (apiCallMade) {
-              await new Promise((resolve) => setTimeout(resolve, 500));
+              await new Promise((resolve) => setTimeout(resolve, 300));
             }
 
             try {
@@ -133,8 +133,8 @@ export default function Results() {
               if (blurb) {
                 try {
                   localStorage.setItem(cacheKey, blurb);
-                } catch (e) {
-                  console.warn('localStorage write failed:', e);
+                } catch {
+                  console.warn('localStorage write failed');
                 }
               }
               apiCallMade = true;
@@ -145,7 +145,7 @@ export default function Results() {
 
           enrichedMovies.push({
             ...movie,
-            reason: blurb || movie.overview // fallback to overview if blurb fails or Gemini is unavailable
+            reason: blurb || movie.overview // fallback to overview if blurb fails or AI is unavailable
           });
 
           // Update state progressively so that recommendations render sequentially!
