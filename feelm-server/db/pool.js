@@ -2,15 +2,52 @@ import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
 const { Pool } = pg;
 
-const sslConfig = {
-  rejectUnauthorized: true,
-  ca: fs.readFileSync(path.resolve('./ca.crt')).toString()
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Check for ca.pem or ca.crt in multiple possible paths:
+// 1. parent directory of pool.js (which is feelm-server/)
+// 2. current working directory of the process
+const possiblePaths = [
+  path.resolve(__dirname, '../ca.pem'),
+  path.resolve(__dirname, '../ca.crt'),
+  path.resolve('./ca.pem'),
+  path.resolve('./ca.crt')
+];
+
+let caPath = null;
+for (const p of possiblePaths) {
+  if (fs.existsSync(p)) {
+    caPath = p;
+    break;
+  }
+}
+
+let sslConfig = {
+  rejectUnauthorized: false
 };
+
+if (caPath) {
+  try {
+    sslConfig = {
+      rejectUnauthorized: true,
+      ca: fs.readFileSync(caPath).toString()
+    };
+    console.log(`SSL: Loaded CA certificate successfully from ${caPath}`);
+  } catch (e) {
+    console.error(`SSL: Failed to read CA certificate from ${caPath}, using fallback SSL configuration:`, e);
+  }
+} else {
+  console.warn('WARNING: No CA certificate (ca.pem or ca.crt) found.');
+  console.warn('Please place your Aiven SSL certificate inside the "feelm-server" directory.');
+  console.warn('Proceeding with fallback SSL configuration (rejectUnauthorized: false)...');
+}
 
 export const pool = new Pool({
   host: process.env.DB_HOST,
