@@ -6,17 +6,6 @@
 
 @layer base {
   :root {
-    --bg-cinema-950: #ffffff;
-    --bg-cinema-900: #f4f4f6;
-    --bg-cinema-800: #eaeaea;
-    --border-cinema-700: #e5e5e7;
-    --border-cinema-600: #d2d2d7;
-    --text-cinema-500: #86868b;
-    --text-cinema-400: #515154;
-    --text-cinema-300: #1d1d1f;
-  }
-
-  html.dark {
     --bg-cinema-950: #000000;
     --bg-cinema-900: #080808;
     --bg-cinema-800: #121212;
@@ -25,6 +14,17 @@
     --text-cinema-500: #525252;
     --text-cinema-400: #a3a3a3;
     --text-cinema-300: #d4d4d4;
+  }
+
+  html.light {
+    --bg-cinema-950: #ffffff;
+    --bg-cinema-900: #f4f4f6;
+    --bg-cinema-800: #eaeaea;
+    --border-cinema-700: #e5e5e7;
+    --border-cinema-600: #d2d2d7;
+    --text-cinema-500: #86868b;
+    --text-cinema-400: #515154;
+    --text-cinema-300: #1d1d1f;
   }
 
   body {

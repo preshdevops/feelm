@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
   <head>
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('feelm_theme');
+          if (theme === 'light') {
+            document.documentElement.classList.remove('dark');
+          } else {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
