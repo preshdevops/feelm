@@ -34,6 +34,13 @@ export default function MovieCard({ movie, watchlistMode = false }) {
       id={`movie-card-${movie.id || movie.movie_id}`}
       className="relative block w-full aspect-[2/3] overflow-hidden group bg-cinema-800 border border-white/10 transition-all duration-300"
     >
+      {/* Media Type Badge (top left) */}
+      {movie.type && (
+        <span className="absolute top-3 left-3 z-20 px-2 py-1 bg-black/60 border border-white/10 text-[9px] font-mono uppercase tracking-widest text-white select-none">
+          {movie.type === 'series' ? 'Series' : 'Film'}
+        </span>
+      )}
+
       {/* Bookmark / Remove Button (top right of poster) */}
       <button
         onClick={handleBookmarkClick}

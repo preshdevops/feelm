@@ -49,6 +49,35 @@ export async function searchMovie(title) {
 }
 
 /**
+ * Searches TMDB for a TV show by title.
+ * @param {string} title
+ * @returns {Promise<Object|null>}
+ */
+export async function searchTV(title) {
+  if (!isTmdbConfigured()) {
+    throw new Error('TMDB API Key is not configured.');
+  }
+
+  try {
+    const response = await fetch(
+      `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&language=en-US&page=1`
+    );
+    if (!response.ok) {
+      throw new Error(`TMDB TV search failed with status: ${response.status}`);
+    }
+    const data = await response.json();
+    if (data.results && data.results.length > 0) {
+      return data.results[0];
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error searching TV show "${title}" on TMDB:`, error);
+    return null;
+  }
+}
+
+
+/**
  * Fetches full details, credits, and videos for a specific movie ID.
  * @param {number|string} id
  * @returns {Promise<Object|null>}

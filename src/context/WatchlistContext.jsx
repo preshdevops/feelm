@@ -1,12 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 import { api } from '../lib/api';
 
 const WatchlistContext = createContext(null);
 
 export function WatchlistProvider({ children }) {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [watchlist, setWatchlist] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -36,6 +38,7 @@ export function WatchlistProvider({ children }) {
       const newItem = await api.addToWatchlist(movie);
       // Append the new item locally
       setWatchlist((prev) => [newItem, ...prev]);
+      showToast('Added to your watchlist');
     } catch (err) {
       console.error('Failed to add item in Context:', err);
       throw err;
@@ -48,6 +51,7 @@ export function WatchlistProvider({ children }) {
       await api.removeFromWatchlist(movieId);
       // Filter out item locally
       setWatchlist((prev) => prev.filter((item) => Number(item.movie_id) !== Number(movieId)));
+      showToast('Removed from watchlist');
     } catch (err) {
       console.error('Failed to remove item in Context:', err);
       throw err;

@@ -6,6 +6,7 @@ import { moods } from '../utils/moods';
 export default function MoodPicker() {
   const [selectedMood, setSelectedMood] = useState(null);
   const [feelingText, setFeelingText] = useState('');
+  const [contentType, setContentType] = useState('movie');
   const [avoidFilters, setAvoidFilters] = useState([]);
   const [eraFilter, setEraFilter] = useState('Either');
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function MoodPicker() {
   const handleSubmit = () => {
     const params = new URLSearchParams();
     if (selectedMood) params.set('mood', selectedMood);
+    params.set('type', contentType);
 
     // Dynamic prompt construction to pass selections cleanly to Gemini/TMDB
     let finalFeeling = feelingText.trim();
@@ -64,6 +66,37 @@ export default function MoodPicker() {
           ))}
         </div>
       </div>
+
+      {/* Content Type Toggle */}
+      <div className="space-y-3">
+        <span className="text-xs uppercase tracking-widest text-cinema-500 font-mono block text-center sm:text-left">
+          What are you in the mood for?
+        </span>
+        <div className="flex flex-wrap gap-2.5 justify-center sm:justify-start">
+          {[
+            { value: 'movie', label: 'Films' },
+            { value: 'series', label: 'Series' },
+            { value: 'both', label: 'Both' }
+          ].map((opt) => {
+            const isSelected = contentType === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setContentType(opt.value)}
+                className={`px-4 py-2 text-xs font-body font-medium transition-all duration-200 border cursor-pointer rounded-none
+                  ${isSelected
+                    ? 'bg-white text-black border-white'
+                    : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-white'
+                  }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
 
       {/* Search Input for describing vibe */}
       <div className="space-y-3">

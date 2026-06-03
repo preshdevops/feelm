@@ -8,29 +8,28 @@ export const isGeminiConfigured = () => {
   );
 };
 
-/**
- * Gets movie recommendations (list of titles) from Groq based on the user's mood and feeling text.
- * @param {string} mood - Selected mood label (e.g., Happy, Sad, Stressed)
- * @param {string} feelingText - Freeform user input describing how they feel
- * @returns {Promise<Array<{title: string}>>}
- */
-export async function getRecommendationsFromGemini(mood, feelingText) {
+export async function getRecommendationsFromGemini(mood, feelingText, type = 'movie') {
   if (!isGeminiConfigured()) {
     throw new Error('Groq API Key is not configured.');
   }
 
-  const prompt = `You are Feelm, a world-class film curator with deep knowledge of global cinema including Hollywood, Nollywood, and international films.
+  let typeDescription = 'films only';
+  if (type === 'series') typeDescription = 'series only';
+  if (type === 'both') typeDescription = 'films and series';
 
-A user is looking for a movie recommendation right now.
+  const prompt = `You are Feelm, a world-class film and series curator with deep knowledge of global cinema and television including Hollywood, Nollywood, and international productions.
+
+A user is looking for recommendations right now.
 Mood: ${mood || 'not specified'}
 How they're feeling: "${feelingText || 'not specified'}"
+The user wants: ${typeDescription}
 
-Return ONLY a raw JSON array of 6 movie objects. No markdown, no explanation, no code blocks.
-Each object must have only a "title" key.
-Vary your picks — mix genres, eras, and origins. Include at least one non-Hollywood film if relevant.
+Return ONLY a raw JSON array of 6 objects. No markdown, no explanation, no code blocks.
+Each object must have a "title" key and a "type" key ("movie" or "series" matching the media type).
+Vary your picks — mix genres, eras, and origins. Include at least one non-Hollywood title if relevant.
 
 Example:
-[{"title":"Parasite"},{"title":"The Secret Life of Walter Mitty"},{"title":"Living in Bondage"}]`;
+[{"title":"Parasite","type":"movie"},{"title":"Breaking Bad","type":"series"},{"title":"Living in Bondage","type":"movie"}]`;
 
   const apiURL = 'https://api.groq.com/openai/v1/chat/completions';
   

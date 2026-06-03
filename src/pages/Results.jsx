@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import MovieCard from '../components/MovieCard';
 import { placeholderMovies } from '../utils/placeholderMovies';
 import { moods } from '../utils/moods';
-import { isTmdbConfigured, searchMovie, getTrendingMovies } from '../utils/tmdb';
+import { isTmdbConfigured, searchMovie, searchTV, getTrendingMovies } from '../utils/tmdb';
 import { isGeminiConfigured, getRecommendationsFromGemini, generateMovieBlurb } from '../utils/gemini';
 
 // Helper to map TMDB genre IDs to strings
@@ -33,6 +33,7 @@ export default function Results() {
   const [searchParams] = useSearchParams();
   const moodId = searchParams.get('mood');
   const feeling = searchParams.get('feeling');
+  const type = searchParams.get('type') || 'movie';
 
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,23 +73,65 @@ export default function Results() {
           
           const aiRecommendations = await getRecommendationsFromGemini(
             moodLabel, 
-            (feeling || '') + shuffleSeed
+            (feeling || '') + shuffleSeed,
+            type
           );
           
           // Search each recommendation on TMDB in parallel (using TMDB search)
           const tmdbPromises = aiRecommendations.map(async (rec) => {
-            const tmdbMovie = await searchMovie(rec.title);
-            if (tmdbMovie) {
+            const recType = rec.type || 'movie';
+            let tmdbMovie = null;
+            let tmdbTV = null;
+
+            const shouldSearchTV = (type === 'series' || type === 'both' || recType === 'series');
+            const shouldSearchMovie = (type === 'movie' || type === 'both' || recType === 'movie');
+
+            if (shouldSearchMovie) {
+              tmdbMovie = await searchMovie(rec.title);
+            }
+            if (shouldSearchTV) {
+              tmdbTV = await searchTV(rec.title);
+            }
+
+            let match = null;
+            let matchedType = 'movie';
+
+            if (tmdbMovie && tmdbTV) {
+              if (recType === 'series') {
+                match = tmdbTV;
+                matchedType = 'series';
+              } else if (recType === 'movie') {
+                match = tmdbMovie;
+                matchedType = 'movie';
+              } else if (tmdbTV.popularity > tmdbMovie.popularity) {
+                match = tmdbTV;
+                matchedType = 'series';
+              } else {
+                match = tmdbMovie;
+                matchedType = 'movie';
+              }
+            } else if (tmdbTV) {
+              match = tmdbTV;
+              matchedType = 'series';
+            } else if (tmdbMovie) {
+              match = tmdbMovie;
+              matchedType = 'movie';
+            }
+
+            if (match) {
               return {
-                id: tmdbMovie.id,
-                title: tmdbMovie.title,
-                year: tmdbMovie.release_date ? new Date(tmdbMovie.release_date).getFullYear() : 'N/A',
-                rating: tmdbMovie.vote_average ? Number(tmdbMovie.vote_average.toFixed(1)) : 'N/A',
-                genre: getGenreNames(tmdbMovie.genre_ids),
-                poster: tmdbMovie.poster_path 
-                  ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}`
+                id: match.id,
+                title: match.title || match.name,
+                year: (match.release_date || match.first_air_date) 
+                  ? new Date(match.release_date || match.first_air_date).getFullYear() 
+                  : 'N/A',
+                rating: match.vote_average ? Number(match.vote_average.toFixed(1)) : 'N/A',
+                genre: getGenreNames(match.genre_ids),
+                poster: match.poster_path 
+                  ? `https://image.tmdb.org/t/p/w500${match.poster_path}`
                   : 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop',
-                overview: tmdbMovie.overview || 'No overview available.',
+                overview: match.overview || 'No overview available.',
+                type: matchedType,
               };
             }
             return null;
@@ -162,7 +205,7 @@ export default function Results() {
     }
 
     fetchVibeMovies();
-  }, [moodId, feeling, selectedMood, shuffleCount]);
+  }, [moodId, feeling, selectedMood, shuffleCount, type]);
 
   const handleShuffle = () => {
     setShuffleCount((prev) => prev + 1);

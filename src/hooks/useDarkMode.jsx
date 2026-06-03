@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 export function useDarkMode() {
   const [isDark, setIsDark] = useState(() => {
     try {
-      const stored = localStorage.getItem('feelm-theme');
+      const stored = localStorage.getItem('feelm_theme');
       if (stored) return stored === 'dark';
     } catch (e) {
       console.warn('localStorage is not available:', e);
@@ -21,7 +21,7 @@ export function useDarkMode() {
       root.classList.add('light');
     }
     try {
-      localStorage.setItem('feelm-theme', isDark ? 'dark' : 'light');
+      localStorage.setItem('feelm_theme', isDark ? 'dark' : 'light');
     } catch (e) {
       console.warn('localStorage is not available:', e);
     }
