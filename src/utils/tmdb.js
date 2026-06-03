@@ -63,6 +63,9 @@ export async function getMovieDetails(id) {
       `${TMDB_BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}&append_to_response=videos,credits&language=en-US`
     );
     if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
       throw new Error(`TMDB details fetch failed with status: ${response.status}`);
     }
     const movie = await response.json();

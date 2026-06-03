@@ -41,15 +41,17 @@ Example:
       'Authorization': `Bearer ${GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.1-8b-instant',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7
     })
   });
 
   if (!response.ok) {
-    throw new Error(`Groq API failed with status: ${response.status}`);
+    const errText = await response.text().catch(() => '');
+    throw new Error(`Groq API failed with status: ${response.status}. Details: ${errText}`);
   }
+
 
   const data = await response.json();
   const text = data.choices?.[0]?.message?.content;
@@ -116,15 +118,17 @@ export async function generateMovieBlurb(movie, mood, feeling) {
       'Authorization': `Bearer ${GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.1-8b-instant',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.6
     })
   });
 
   if (!response.ok) {
-    throw new Error(`Status: ${response.status}`);
+    const errText = await response.text().catch(() => '');
+    throw new Error(`Groq API failed with status: ${response.status}. Details: ${errText}`);
   }
+
 
   const data = await response.json();
   const text = data.choices?.[0]?.message?.content;
