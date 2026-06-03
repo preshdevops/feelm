@@ -19,27 +19,18 @@ export async function getRecommendationsFromGemini(mood, feelingText) {
     throw new Error('Groq API Key is not configured.');
   }
 
-  const prompt = `
-    You are a premium film curator AI named "Feelm".
-    Based on the following request:
-    Selected Mood Category: ${mood || 'None specified'}
-    User's feeling description: "${feelingText || 'None specified'}"
-    
-    Please recommend 5 to 7 movies that match this vibe.
-    
-    You MUST respond with a valid JSON array of objects containing ONLY the "title" of the movie.
-    Example format:
-    [
-      {
-        "title": "Interstellar"
-      },
-      {
-        "title": "The Grand Budapest Hotel"
-      }
-    ]
-    
-    Do not wrap your output in markdown code blocks. Return raw JSON only.
-  `;
+  const prompt = `You are Feelm, a world-class film curator with deep knowledge of global cinema including Hollywood, Nollywood, and international films.
+
+A user is looking for a movie recommendation right now.
+Mood: ${mood || 'not specified'}
+How they're feeling: "${feelingText || 'not specified'}"
+
+Return ONLY a raw JSON array of 6 movie objects. No markdown, no explanation, no code blocks.
+Each object must have only a "title" key.
+Vary your picks — mix genres, eras, and origins. Include at least one non-Hollywood film if relevant.
+
+Example:
+[{"title":"Parasite"},{"title":"The Secret Life of Walter Mitty"},{"title":"Living in Bondage"}]`;
 
   const apiURL = 'https://api.groq.com/openai/v1/chat/completions';
   
