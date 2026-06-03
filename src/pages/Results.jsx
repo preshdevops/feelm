@@ -46,10 +46,16 @@ export default function Results() {
     async function fetchVibeMovies() {
       if (shuffleCount === 0) {
         const cachedResults = sessionStorage.getItem('feelm_results');
-        const cachedMood = sessionStorage.getItem('feelm_results_mood');
-        const cachedFeeling = sessionStorage.getItem('feelm_results_feeling');
+        const cachedMood = sessionStorage.getItem('feelm_results_mood') || '';
+        const cachedFeeling = sessionStorage.getItem('feelm_results_feeling') || '';
+        const cachedType = sessionStorage.getItem('feelm_results_type') || '';
 
-        if (cachedResults && cachedMood === moodId && cachedFeeling === (feeling || '')) {
+        if (
+          cachedResults &&
+          cachedMood === (moodId || '') &&
+          cachedFeeling === (feeling || '') &&
+          cachedType === (type || '')
+        ) {
           try {
             const parsed = JSON.parse(cachedResults);
             if (parsed && parsed.length > 0) {
@@ -75,8 +81,9 @@ export default function Results() {
           const shuffled = shuffleArray(placeholderMovies);
           setMovies(shuffled);
           sessionStorage.setItem('feelm_results', JSON.stringify(shuffled));
-          sessionStorage.setItem('feelm_results_mood', moodId);
+          sessionStorage.setItem('feelm_results_mood', moodId || '');
           sessionStorage.setItem('feelm_results_feeling', feeling || '');
+          sessionStorage.setItem('feelm_results_type', type || '');
           setLoading(false);
         }, 600);
         return;
@@ -219,8 +226,9 @@ export default function Results() {
         }
         // Save to sessionStorage
         sessionStorage.setItem('feelm_results', JSON.stringify(enrichedMovies));
-        sessionStorage.setItem('feelm_results_mood', moodId);
+        sessionStorage.setItem('feelm_results_mood', moodId || '');
         sessionStorage.setItem('feelm_results_feeling', feeling || '');
+        sessionStorage.setItem('feelm_results_type', type || '');
       } catch (err) {
         console.error('Failed to load AI recommendations:', err);
         setError(err.message || 'Unable to retrieve film list.');
@@ -228,8 +236,9 @@ export default function Results() {
         const fallback = shuffleArray(placeholderMovies);
         setMovies(fallback);
         sessionStorage.setItem('feelm_results', JSON.stringify(fallback));
-        sessionStorage.setItem('feelm_results_mood', moodId);
+        sessionStorage.setItem('feelm_results_mood', moodId || '');
         sessionStorage.setItem('feelm_results_feeling', feeling || '');
+        sessionStorage.setItem('feelm_results_type', type || '');
       } finally {
         setLoading(false);
       }

@@ -41,6 +41,9 @@ export default function MoodPicker() {
 
     if (finalFeeling.trim()) params.set('feeling', finalFeeling.trim());
     sessionStorage.removeItem('feelm_results');
+    sessionStorage.removeItem('feelm_results_mood');
+    sessionStorage.removeItem('feelm_results_feeling');
+    sessionStorage.removeItem('feelm_results_type');
     navigate(`/results?${params.toString()}`);
   };
 
