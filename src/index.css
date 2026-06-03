@@ -6,30 +6,34 @@
 
 @layer base {
   :root {
-    --bg-cinema-950: #000000;
-    --bg-cinema-900: #080808;
-    --bg-cinema-800: #121212;
-    --border-cinema-700: #1c1c1c;
-    --border-cinema-600: #2a2a2a;
-    --text-cinema-500: #525252;
-    --text-cinema-400: #a3a3a3;
-    --text-cinema-300: #d4d4d4;
+    --cinema-950: #000000;
+    --cinema-900: #080808;
+    --cinema-800: #121212;
+    --cinema-700: #1c1c1c;
+    --cinema-600: #2a2a2a;
+    --cinema-500: #525252;
+    --cinema-400: #a3a3a3;
+    --cinema-300: #d4d4d4;
   }
 
   html.light {
-    --bg-cinema-950: #f8f8f8;
-    --bg-cinema-900: #ffffff;
-    --bg-cinema-800: #efefef;
-    --border-cinema-700: #d8d8d8;
-    --border-cinema-600: #c0c0c0;
-    --text-cinema-500: #999999;
-    --text-cinema-400: #444444;
-    --text-cinema-300: #111111;
+    --cinema-950: #f8f8f8;
+    --cinema-900: #ffffff;
+    --cinema-800: #efefef;
+    --cinema-700: #d8d8d8;
+    --cinema-600: #c0c0c0;
+    --cinema-500: #999999;
+    --cinema-400: #444444;
+    --cinema-300: #111111;
   }
 
-  html.light nav {
-    border-bottom-color: #d8d8d8;
-    background-color: #ffffff;
+  html.light .navbar-bg {
+    background-color: var(--cinema-950);
+    border-bottom-color: var(--cinema-700);
+  }
+
+  *, *::before, *::after {
+    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
   }
 
   body {
@@ -88,7 +92,7 @@
 
   .page-container {
     @apply min-h-screen bg-cinema-950 pt-20;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.25s ease;
   }
 
   .content-container {

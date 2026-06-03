@@ -18,7 +18,7 @@ export default function Watchlist() {
 
   if (authLoading || !user) {
     return (
-      <div className="page-container min-h-screen bg-cinema-950 flex items-center justify-center">
+      <div className="page-container min-h-screen flex items-center justify-center">
         <div className="animate-pulse space-y-4 w-full max-w-sm px-6">
           <div className="h-4 bg-cinema-800 rounded w-1/4" />
           <div className="h-8 bg-cinema-800 rounded w-3/4" />
@@ -28,7 +28,7 @@ export default function Watchlist() {
   }
 
   return (
-    <div className="page-container pt-20 pb-20 bg-cinema-950 min-h-screen">
+    <div className="page-container pt-20 pb-20 min-h-screen">
       <div className="content-container">
         {/* Header */}
         <div className="flex items-center justify-between mb-12 animate-fade-in">

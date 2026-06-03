@@ -2,7 +2,7 @@ import MoodPicker from '../components/MoodPicker';
 
 export default function Home() {
   return (
-    <div className="page-container flex flex-col justify-center min-h-[90vh] bg-cinema-950">
+    <div className="page-container flex flex-col justify-center min-h-[90vh]">
       <div className="content-container py-16 md:py-24 space-y-12 md:space-y-16">
         {/* Editorial Hero Header */}
         <div className="text-center sm:text-left space-y-6 animate-fade-in max-w-3xl">

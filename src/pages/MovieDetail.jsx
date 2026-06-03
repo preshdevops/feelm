@@ -104,7 +104,7 @@ export default function MovieDetail() {
 
   if (loading) {
     return (
-      <div className="page-container min-h-screen bg-cinema-950 flex items-center justify-center">
+      <div className="page-container min-h-screen flex items-center justify-center">
         <div className="animate-pulse space-y-6 w-full max-w-xl px-6">
           <div className="h-4 bg-cinema-800 rounded w-1/4" />
           <div className="h-10 bg-cinema-800 rounded w-3/4" />
@@ -117,7 +117,7 @@ export default function MovieDetail() {
 
   if (error || !movie) {
     return (
-      <div className="page-container min-h-screen bg-cinema-950 flex items-center justify-center">
+      <div className="page-container min-h-screen flex items-center justify-center">
         <div className="text-center space-y-6 px-6">
           <h1 className="font-display italic text-3xl text-cinema-300">Film not found</h1>
           <p className="text-cinema-400 font-light max-w-sm">{error || "We couldn't retrieve the details for this movie."}</p>

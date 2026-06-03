@@ -264,7 +264,7 @@ export default function Results() {
   };
 
   return (
-    <div className="page-container pt-20 pb-20 bg-cinema-950">
+    <div className="page-container pt-20 pb-20">
       <div className="content-container">
         {/* Header Navigation */}
         <div className="flex items-center justify-between mb-12 animate-fade-in">

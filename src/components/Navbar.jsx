@@ -11,7 +11,7 @@ export default function Navbar() {
   const initial = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-cinema-950 border-b border-cinema-700 h-14 flex items-center">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-cinema-950 border-b border-cinema-700 h-14 flex items-center navbar-bg">
       <div className="content-container w-full flex items-center justify-between">
         {/* Logo */}
         <Link
