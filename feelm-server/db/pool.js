@@ -11,35 +11,25 @@ const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Check for ca.pem or ca.crt in multiple possible paths:
-// 1. parent directory of pool.js (which is feelm-server/)
-// 2. current working directory of the process
-const possiblePaths = [
-  path.resolve(__dirname, '../ca.pem'),
-  path.resolve(__dirname, '../ca.crt'),
-  path.resolve('./ca.pem'),
-  path.resolve('./ca.crt')
-];
+let sslConfig;
 
-let caPath = null;
-for (const p of possiblePaths) {
-  if (fs.existsSync(p)) {
-    caPath = p;
-    break;
+if (process.env.DB_CA_CERT) {
+  sslConfig = {
+    rejectUnauthorized: true,
+    ca: process.env.DB_CA_CERT
+  };
+} else {
+  // local dev — look for ca.crt file
+  const caPath = ['./ca.crt', './ca.pem'].find(p => fs.existsSync(p));
+  if (!caPath) {
+    console.error('FATAL: No CA certificate found.');
+    process.exit(1);
   }
+  sslConfig = {
+    rejectUnauthorized: true,
+    ca: fs.readFileSync(caPath).toString()
+  };
 }
-
-if (!caPath) {
-  console.error('FATAL: No CA certificate found. Place ca.crt inside feelm-server/');
-  process.exit(1);
-}
-
-const sslConfig = {
-  rejectUnauthorized: true,
-  ca: fs.readFileSync(caPath).toString()
-};
-
-console.log(`SSL: Loaded CA certificate successfully from ${caPath}`);
 
 
 export const pool = new Pool({
