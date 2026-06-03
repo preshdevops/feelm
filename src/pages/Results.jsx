@@ -113,8 +113,8 @@ export default function Results() {
             let tmdbMovie = null;
             let tmdbTV = null;
 
-            const shouldSearchTV = (type === 'series' || type === 'both' || recType === 'series');
-            const shouldSearchMovie = (type === 'movie' || type === 'both' || recType === 'movie');
+            const shouldSearchTV = type === 'series' || (type === 'both' && recType !== 'movie');
+            const shouldSearchMovie = type === 'movie' || (type === 'both' && recType !== 'series');
 
             if (shouldSearchMovie) {
               tmdbMovie = await searchMovie(rec.title);

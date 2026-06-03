@@ -14,8 +14,15 @@ export async function getRecommendationsFromGemini(mood, feelingText, type = 'mo
   }
 
   let typeDescription = 'films only';
-  if (type === 'series') typeDescription = 'series only';
-  if (type === 'both') typeDescription = 'films and series';
+  let exampleJson = '[{"title":"Parasite","type":"movie"},{"title":"Inception","type":"movie"},{"title":"Living in Bondage","type":"movie"}]';
+
+  if (type === 'series') {
+    typeDescription = 'series only';
+    exampleJson = '[{"title":"Breaking Bad","type":"series"},{"title":"Stranger Things","type":"series"},{"title":"Squid Game","type":"series"}]';
+  } else if (type === 'both') {
+    typeDescription = 'films and series';
+    exampleJson = '[{"title":"Parasite","type":"movie"},{"title":"Breaking Bad","type":"series"},{"title":"Living in Bondage","type":"movie"}]';
+  }
 
   const prompt = `You are Feelm, a world-class film and series curator with deep knowledge of global cinema and television including Hollywood, Nollywood, and international productions.
 
@@ -29,7 +36,7 @@ Each object must have a "title" key and a "type" key ("movie" or "series" matchi
 Vary your picks — mix genres, eras, and origins. Include at least one non-Hollywood title if relevant.
 
 Example:
-[{"title":"Parasite","type":"movie"},{"title":"Breaking Bad","type":"series"},{"title":"Living in Bondage","type":"movie"}]`;
+${exampleJson}`;
 
   const apiURL = 'https://api.groq.com/openai/v1/chat/completions';
   
