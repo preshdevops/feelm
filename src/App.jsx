@@ -9,10 +9,12 @@ import AuthModal from './components/AuthModal';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { WatchlistProvider } from './context/WatchlistContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 export default function App() {
   return (
-    <AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
       <ToastProvider>
         <WatchlistProvider>
 
@@ -35,5 +37,6 @@ export default function App() {
       </WatchlistProvider>
       </ToastProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
