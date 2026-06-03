@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { placeholderMovies } from '../utils/placeholderMovies';
 import { getMovieDetails, isTmdbConfigured } from '../utils/tmdb';
@@ -7,8 +7,20 @@ import useWatchlist from '../hooks/useWatchlist';
 
 export default function MovieDetail() {
   const { id } = useParams();
-  const [movie, setMovie] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [movie, setMovie] = useState(() => {
+    if (location.state?.movie) {
+      const m = location.state.movie;
+      return {
+        ...m,
+        backdrop: m.backdrop || m.movie_backdrop || m.poster,
+        genres: m.genres || m.genre || '',
+      };
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(!location.state?.movie);
   const [error, setError] = useState(null);
   const [showTrailer, setShowTrailer] = useState(false);
 
@@ -36,7 +48,9 @@ export default function MovieDetail() {
 
   useEffect(() => {
     async function loadDetails() {
-      setLoading(true);
+      if (!location.state?.movie) {
+        setLoading(true);
+      }
       setError(null);
 
       const tmdbActive = isTmdbConfigured();
@@ -77,14 +91,16 @@ export default function MovieDetail() {
         }
       } catch (err) {
         console.error('Failed to load movie details:', err);
-        setError(err.message || 'Error loading movie details.');
+        if (!location.state?.movie) {
+          setError(err.message || 'Error loading movie details.');
+        }
       } finally {
         setLoading(false);
       }
     }
 
     loadDetails();
-  }, [id]);
+  }, [id, location.state?.movie]);
 
   if (loading) {
     return (
@@ -129,13 +145,13 @@ export default function MovieDetail() {
       <div className="relative z-10 w-full pt-20 pb-16 flex-grow flex flex-col justify-center">
         <div className="content-container w-full space-y-12">
           {/* Back button */}
-          <Link
-            to="/results"
+          <button
+            onClick={() => navigate(-1)}
             id="back-to-results"
             className="inline-flex items-center text-cinema-500 hover:text-white transition-colors duration-200 text-xs font-mono uppercase tracking-widest"
           >
             ← Back to results
-          </Link>
+          </button>
 
           {/* Main Info */}
           <div className="max-w-3xl space-y-8 animate-fade-in">

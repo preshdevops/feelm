@@ -44,6 +44,25 @@ export default function Results() {
 
   useEffect(() => {
     async function fetchVibeMovies() {
+      if (shuffleCount === 0) {
+        const cachedResults = sessionStorage.getItem('feelm_results');
+        const cachedMood = sessionStorage.getItem('feelm_results_mood');
+        const cachedFeeling = sessionStorage.getItem('feelm_results_feeling');
+
+        if (cachedResults && cachedMood === moodId && cachedFeeling === (feeling || '')) {
+          try {
+            const parsed = JSON.parse(cachedResults);
+            if (parsed && parsed.length > 0) {
+              setMovies(parsed);
+              setLoading(false);
+              return;
+            }
+          } catch (e) {
+            console.error('Error parsing cached results:', e);
+          }
+        }
+      }
+
       setLoading(true);
       setError(null);
 
@@ -53,7 +72,11 @@ export default function Results() {
       if (!aiReady && !tmdbOnly) {
         // Full Demo Mode (no keys) - Shuffle local mock array
         setTimeout(() => {
-          setMovies(shuffleArray(placeholderMovies));
+          const shuffled = shuffleArray(placeholderMovies);
+          setMovies(shuffled);
+          sessionStorage.setItem('feelm_results', JSON.stringify(shuffled));
+          sessionStorage.setItem('feelm_results_mood', moodId);
+          sessionStorage.setItem('feelm_results_feeling', feeling || '');
           setLoading(false);
         }, 600);
         return;
@@ -194,11 +217,19 @@ export default function Results() {
           // Update state progressively so that recommendations render sequentially!
           setMovies([...enrichedMovies]);
         }
+        // Save to sessionStorage
+        sessionStorage.setItem('feelm_results', JSON.stringify(enrichedMovies));
+        sessionStorage.setItem('feelm_results_mood', moodId);
+        sessionStorage.setItem('feelm_results_feeling', feeling || '');
       } catch (err) {
         console.error('Failed to load AI recommendations:', err);
         setError(err.message || 'Unable to retrieve film list.');
         // Graceful fallback to shuffled local placeholders
-        setMovies(shuffleArray(placeholderMovies));
+        const fallback = shuffleArray(placeholderMovies);
+        setMovies(fallback);
+        sessionStorage.setItem('feelm_results', JSON.stringify(fallback));
+        sessionStorage.setItem('feelm_results_mood', moodId);
+        sessionStorage.setItem('feelm_results_feeling', feeling || '');
       } finally {
         setLoading(false);
       }

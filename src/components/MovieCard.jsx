@@ -30,8 +30,9 @@ export default function MovieCard({ movie, watchlistMode = false }) {
 
   return (
     <Link
-      to={`/movie/${movie.id || movie.movie_id}`}
-      id={`movie-card-${movie.id || movie.movie_id}`}
+      to={`/movie/${movie.id}`}
+      state={{ movie }}
+      id={`movie-card-${movie.id}`}
       className="relative block w-full aspect-[2/3] overflow-hidden group bg-cinema-800 border border-white/10 transition-all duration-300"
     >
       {/* Media Type Badge (top left) */}
