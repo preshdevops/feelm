@@ -6,7 +6,7 @@ export default function Home() {
       <div className="content-container py-16 md:py-24 space-y-12 md:space-y-16">
         {/* Editorial Hero Header */}
         <div className="text-center sm:text-left space-y-6 animate-fade-in max-w-3xl">
-          <h1 className="font-display italic font-semibold text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-white tracking-tight leading-none">
+          <h1 className="font-display italic font-semibold text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-cinema-300 tracking-tight leading-none">
             Your mood.<br className="hidden sm:inline" />
             <span className="text-accent"> Your movie.</span>
           </h1>

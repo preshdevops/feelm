@@ -33,11 +33,11 @@ export default function MovieCard({ movie, watchlistMode = false }) {
       to={`/movie/${movie.id}`}
       state={{ movie }}
       id={`movie-card-${movie.id}`}
-      className="relative block w-full aspect-[2/3] overflow-hidden group bg-cinema-800 border border-white/10 transition-all duration-300"
+      className="relative block w-full aspect-[2/3] overflow-hidden group bg-cinema-800 border border-cinema-700/50 transition-all duration-300"
     >
       {/* Media Type Badge (top left) */}
       {movie.type && (
-        <span className="absolute top-3 left-3 z-20 px-2 py-1 bg-black/60 border border-white/10 text-[9px] font-mono uppercase tracking-widest text-white select-none">
+        <span className="absolute top-3 left-3 z-20 px-2 py-1 bg-cinema-950/80 border border-cinema-700/50 text-[9px] font-mono uppercase tracking-widest text-cinema-300 select-none">
           {movie.type === 'series' ? 'Series' : 'Film'}
         </span>
       )}
@@ -45,11 +45,11 @@ export default function MovieCard({ movie, watchlistMode = false }) {
       {/* Bookmark / Remove Button (top right of poster) */}
       <button
         onClick={handleBookmarkClick}
-        className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center bg-black/60 hover:bg-black/85 border border-white/10 hover:border-white transition-all cursor-pointer"
+        className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center bg-cinema-950/80 hover:bg-cinema-900 border border-cinema-700/50 hover:border-cinema-500 transition-all cursor-pointer"
         aria-label={watchlistMode ? "Remove from watchlist" : bookmarked ? "Remove from watchlist" : "Add to watchlist"}
       >
         {watchlistMode ? (
-          <span className="text-white hover:text-accent text-xs font-mono font-semibold">✕</span>
+          <span className="text-cinema-300 hover:text-accent text-xs font-mono font-semibold">✕</span>
         ) : (
           <svg 
             className={`w-3.5 h-3.5 transition-colors ${bookmarked ? 'fill-accent text-accent' : 'text-cinema-400 fill-none'}`} 
@@ -71,10 +71,10 @@ export default function MovieCard({ movie, watchlistMode = false }) {
       />
 
       {/* Hover Overlay */}
-      <div className="absolute inset-0 bg-black/85 flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out">
+      <div className="absolute inset-0 bg-cinema-950/90 flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out">
         <div className="space-y-2.5 translate-y-3 group-hover:translate-y-0 transition-transform duration-300 ease-out">
           {/* Title */}
-          <h3 className="font-display italic text-lg sm:text-xl font-semibold text-white leading-snug">
+          <h3 className="font-display italic text-lg sm:text-xl font-semibold text-cinema-300 leading-snug">
             {movie.title || movie.movie_title}
           </h3>
 

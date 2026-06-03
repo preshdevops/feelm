@@ -73,8 +73,8 @@ export default function MoodCard({ mood, isSelected, onClick }) {
       onClick={() => onClick(mood.id)}
       className={`flex items-center gap-3 px-5 py-3 border transition-all duration-200 cursor-pointer rounded-none
         ${isSelected 
-          ? 'bg-white text-black border-white' 
-          : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-white'}`}
+          ? 'bg-cinema-300 text-cinema-950 border-cinema-300' 
+          : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-cinema-300'}`}
     >
       <span className={isSelected ? 'text-accent' : 'text-current'}>
         {getMoodIcon(mood.id)}

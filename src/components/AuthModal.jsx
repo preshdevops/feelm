@@ -46,7 +46,7 @@ export default function AuthModal() {
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-cinema-950/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
       onClick={handleClose}
     >
       {/* Modal Card */}
@@ -57,14 +57,14 @@ export default function AuthModal() {
         {/* Close trigger top-right */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 text-xs font-mono text-cinema-500 hover:text-white uppercase tracking-widest transition-colors"
+          className="absolute top-4 right-4 text-xs font-mono text-cinema-500 hover:text-cinema-300 uppercase tracking-widest transition-colors"
         >
           ✕
         </button>
 
         {/* Title */}
         <div className="space-y-1.5 text-center sm:text-left">
-          <h2 className="font-display italic text-2xl sm:text-3xl text-white">
+          <h2 className="font-display italic text-2xl sm:text-3xl text-cinema-300">
             {isSignUp ? 'Create Account' : 'Sign In'}
           </h2>
           <p className="text-xs font-mono text-cinema-500 uppercase tracking-widest">
@@ -90,7 +90,7 @@ export default function AuthModal() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={submitting}
-              className="w-full px-3.5 py-2.5 bg-cinema-950 border border-cinema-700 text-white placeholder-cinema-600 font-body text-sm focus:outline-none focus:border-white transition-colors"
+              className="w-full px-3.5 py-2.5 bg-cinema-950 border border-cinema-700 text-cinema-300 placeholder-cinema-600 font-body text-sm focus:outline-none focus:border-cinema-300 transition-colors"
               placeholder="name@email.com"
               required
             />
@@ -106,14 +106,14 @@ export default function AuthModal() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={submitting}
-                className="w-full pl-3.5 pr-10 py-2.5 bg-cinema-950 border border-cinema-700 text-white placeholder-cinema-600 font-body text-sm focus:outline-none focus:border-white transition-colors"
+                className="w-full pl-3.5 pr-10 py-2.5 bg-cinema-950 border border-cinema-700 text-cinema-300 placeholder-cinema-600 font-body text-sm focus:outline-none focus:border-cinema-300 transition-colors"
                 placeholder="••••••••"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-cinema-500 hover:text-white transition-colors cursor-pointer"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-cinema-500 hover:text-cinema-300 transition-colors cursor-pointer"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
@@ -152,7 +152,7 @@ export default function AuthModal() {
               setShowPassword(false);
             }}
             disabled={submitting}
-            className="text-xs font-mono text-cinema-400 hover:text-white uppercase tracking-widest transition-colors decoration-dotted underline"
+            className="text-xs font-mono text-cinema-400 hover:text-cinema-300 uppercase tracking-widest transition-colors decoration-dotted underline"
           >
             {isSignUp ? 'Already have an account? Sign In' : 'New to Feelm? Sign Up'}
           </button>

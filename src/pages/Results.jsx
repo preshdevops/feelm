@@ -271,7 +271,7 @@ export default function Results() {
           <Link
             to="/"
             id="back-to-home"
-            className="inline-flex items-center gap-1.5 text-cinema-500 hover:text-white transition-colors duration-200 text-xs font-mono uppercase tracking-widest"
+            className="inline-flex items-center gap-1.5 text-cinema-500 hover:text-cinema-300 transition-colors duration-200 text-xs font-mono uppercase tracking-widest"
           >
             ← Back to moods
           </Link>
@@ -280,7 +280,7 @@ export default function Results() {
           <button
             onClick={handleShuffle}
             disabled={loading}
-            className="px-4 py-2 border border-white/10 hover:border-white text-xs text-white uppercase tracking-widest transition-colors duration-200 font-mono disabled:opacity-30 disabled:hover:border-white/10"
+            className="px-4 py-2 border border-cinema-700/50 hover:border-cinema-500 text-xs text-cinema-300 uppercase tracking-widest transition-colors duration-200 font-mono disabled:opacity-30 disabled:hover:border-cinema-700/50"
           >
             {loading ? 'Refetching...' : 'Shuffle ↺'}
           </button>
@@ -288,7 +288,7 @@ export default function Results() {
 
         {/* Dynamic Title */}
         <div className="mb-12 animate-fade-in">
-          <h1 className="editorial-title font-display font-medium text-white max-w-3xl leading-tight">
+          <h1 className="editorial-title font-display font-medium text-cinema-300 max-w-3xl leading-tight">
             {getDynamicTitle()}
           </h1>
           {error && (
@@ -329,7 +329,7 @@ function SkeletonLoader() {
       {[...Array(5)].map((_, i) => (
         <div 
           key={i} 
-          className="w-full aspect-[2/3] bg-cinema-900 border border-white/5 animate-pulse"
+          className="w-full aspect-[2/3] bg-cinema-900 border border-cinema-700/50 animate-pulse"
         />
       ))}
     </div>

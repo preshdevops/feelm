@@ -119,7 +119,7 @@ export default function MovieDetail() {
     return (
       <div className="page-container min-h-screen bg-cinema-950 flex items-center justify-center">
         <div className="text-center space-y-6 px-6">
-          <h1 className="font-display italic text-3xl text-white">Film not found</h1>
+          <h1 className="font-display italic text-3xl text-cinema-300">Film not found</h1>
           <p className="text-cinema-400 font-light max-w-sm">{error || "We couldn't retrieve the details for this movie."}</p>
           <Link to="/" className="btn-editorial">
             Return Home
@@ -130,10 +130,10 @@ export default function MovieDetail() {
   }
 
   return (
-    <div className="relative min-h-screen bg-cinema-950 text-white overflow-hidden flex flex-col justify-between">
+    <div className="relative min-h-screen bg-cinema-950 text-cinema-300 overflow-hidden flex flex-col justify-between">
       {/* Full bleed blurred backdrop image */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-black/75 z-10" /> {/* Dark overlay overlay */}
+        <div className="absolute inset-0 bg-cinema-950/80 z-10" /> {/* Dark overlay overlay */}
         <img
           src={movie.backdrop}
           alt=""
@@ -148,7 +148,7 @@ export default function MovieDetail() {
           <button
             onClick={() => navigate(-1)}
             id="back-to-results"
-            className="inline-flex items-center text-cinema-500 hover:text-white transition-colors duration-200 text-xs font-mono uppercase tracking-widest"
+            className="inline-flex items-center text-cinema-500 hover:text-cinema-300 transition-colors duration-200 text-xs font-mono uppercase tracking-widest"
           >
             ← Back to results
           </button>
@@ -160,7 +160,7 @@ export default function MovieDetail() {
               <span className="text-xs uppercase tracking-widest text-accent font-mono font-semibold">
                 ★ {movie.rating} rating
               </span>
-              <h1 className="font-display italic font-semibold text-4xl sm:text-5xl md:text-6xl text-white tracking-tight leading-tight">
+              <h1 className="font-display italic font-semibold text-4xl sm:text-5xl md:text-6xl text-cinema-300 tracking-tight leading-tight">
                 {movie.title}
               </h1>
               
@@ -184,7 +184,7 @@ export default function MovieDetail() {
             {movie.reason && (
               <blockquote className="border-l border-accent/60 pl-6 py-2 space-y-1 my-6">
                 <span className="text-[10px] font-mono uppercase tracking-widest text-cinema-500 block">AI Vibe Match</span>
-                <p className="font-display italic text-lg sm:text-2xl text-white/90 leading-relaxed">
+                <p className="font-display italic text-lg sm:text-2xl text-cinema-300 leading-relaxed">
                   &ldquo;{movie.reason}&ldquo;
                 </p>
               </blockquote>
@@ -221,7 +221,7 @@ export default function MovieDetail() {
               ) : (
                 <button
                   disabled
-                  className="px-6 py-3 border border-white/5 text-cinema-600 cursor-not-allowed text-xs uppercase tracking-widest font-mono"
+                  className="px-6 py-3 border border-cinema-700/50 text-cinema-600 cursor-not-allowed text-xs uppercase tracking-widest font-mono"
                 >
                   No Trailer Available
                 </button>
@@ -245,13 +245,13 @@ export default function MovieDetail() {
 
       {/* Trailer Modal (Minimalist Black Frame) */}
       {showTrailer && movie.trailerUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-4xl aspect-video border border-cinema-700 bg-black">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cinema-950/95 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-4xl aspect-video border border-cinema-700 bg-cinema-950">
             {/* Close button */}
             <button
               id="close-trailer-btn"
               onClick={() => setShowTrailer(false)}
-              className="absolute -top-10 right-0 text-xs font-mono text-cinema-400 hover:text-white uppercase tracking-widest transition-colors duration-200"
+              className="absolute -top-10 right-0 text-xs font-mono text-cinema-400 hover:text-cinema-300 uppercase tracking-widest transition-colors duration-200"
               aria-label="Close trailer"
             >
               Close ✕

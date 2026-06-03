@@ -5,9 +5,32 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --bg-cinema-950: #ffffff;
+    --bg-cinema-900: #f4f4f6;
+    --bg-cinema-800: #eaeaea;
+    --border-cinema-700: #e5e5e7;
+    --border-cinema-600: #d2d2d7;
+    --text-cinema-500: #86868b;
+    --text-cinema-400: #515154;
+    --text-cinema-300: #1d1d1f;
+  }
+
+  html.dark {
+    --bg-cinema-950: #000000;
+    --bg-cinema-900: #080808;
+    --bg-cinema-800: #121212;
+    --border-cinema-700: #1c1c1c;
+    --border-cinema-600: #2a2a2a;
+    --text-cinema-500: #525252;
+    --text-cinema-400: #a3a3a3;
+    --text-cinema-300: #d4d4d4;
+  }
+
   body {
     @apply font-body text-cinema-300 bg-cinema-950 antialiased;
     letter-spacing: -0.01em;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   }
 }
 
@@ -15,9 +38,9 @@
   /* Minimal editorial outline button */
   .btn-editorial {
     @apply inline-flex items-center justify-center px-6 py-3
-           bg-transparent text-white font-body font-medium text-sm
-           border border-white/20 rounded-none
-           hover:border-white hover:bg-white hover:text-black
+           bg-transparent text-cinema-300 font-body font-medium text-sm
+           border border-cinema-700 rounded-none
+           hover:border-cinema-300 hover:bg-cinema-300 hover:text-cinema-950
            transition-all duration-300 ease-out;
   }
 
@@ -34,32 +57,33 @@
   .tag-pill {
     @apply px-4 py-2 text-sm font-body font-medium
            border border-cinema-700 bg-cinema-950 text-cinema-400
-           hover:border-cinema-500 hover:text-white
+           hover:border-cinema-500 hover:text-cinema-300
            transition-all duration-200 select-none cursor-pointer;
   }
 
   .tag-pill.selected {
-    @apply border-white bg-white text-black;
+    @apply border-cinema-300 bg-cinema-300 text-cinema-950;
   }
 
   /* Search style vibe input */
   .minimal-search {
     @apply w-full px-4 py-4
            bg-cinema-900 border border-cinema-700 rounded-none
-           text-white placeholder-cinema-500
+           text-cinema-300 placeholder-cinema-500
            font-body text-base
-           focus:outline-none focus:border-white
+           focus:outline-none focus:border-cinema-300
            hover:border-cinema-600
            transition-all duration-300;
   }
 
   /* Page title */
   .editorial-title {
-    @apply font-display italic text-4xl sm:text-5xl md:text-6xl text-white tracking-tight;
+    @apply font-display italic text-4xl sm:text-5xl md:text-6xl text-cinema-300 tracking-tight;
   }
 
   .page-container {
     @apply min-h-screen bg-cinema-950 pt-20;
+    transition: background-color 0.2s ease;
   }
 
   .content-container {

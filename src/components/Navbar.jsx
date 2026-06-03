@@ -11,7 +11,7 @@ export default function Navbar() {
   const initial = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-cinema-950 border-b border-white/10 h-14 flex items-center">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-cinema-950 border-b border-cinema-700 h-14 flex items-center">
       <div className="content-container w-full flex items-center justify-between">
         {/* Logo */}
         <Link
@@ -19,7 +19,7 @@ export default function Navbar() {
           id="navbar-logo"
           className="flex items-center"
         >
-          <span className="font-display italic font-semibold text-xl text-white tracking-wider">
+          <span className="font-display italic font-semibold text-xl text-cinema-300 tracking-wider">
             Feelm
           </span>
         </Link>
@@ -31,7 +31,7 @@ export default function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setDropdownOpen((prev) => !prev)}
-                className="w-8 h-8 rounded-full border border-cinema-700 bg-cinema-800 text-white flex items-center justify-center font-mono text-sm hover:border-white transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full border border-cinema-700 bg-cinema-800 text-cinema-300 flex items-center justify-center font-mono text-sm hover:border-cinema-300 transition-colors cursor-pointer"
                 aria-label="User menu"
               >
                 {initial}
@@ -43,7 +43,7 @@ export default function Navbar() {
                     <Link
                       to="/watchlist"
                       onClick={() => setDropdownOpen(false)}
-                      className="block px-4 py-2.5 text-cinema-400 hover:text-white hover:bg-cinema-900 transition-colors"
+                      className="block px-4 py-2.5 text-cinema-400 hover:text-cinema-300 hover:bg-cinema-900 transition-colors"
                     >
                       My Watchlist
                     </Link>
@@ -52,7 +52,7 @@ export default function Navbar() {
                         logout();
                         setDropdownOpen(false);
                       }}
-                      className="w-full text-left block px-4 py-2.5 text-cinema-400 hover:text-white hover:bg-cinema-900 transition-colors cursor-pointer"
+                      className="w-full text-left block px-4 py-2.5 text-cinema-400 hover:text-cinema-300 hover:bg-cinema-900 transition-colors cursor-pointer"
                     >
                       Sign Out
                     </button>

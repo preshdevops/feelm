@@ -34,7 +34,7 @@ export default function Watchlist() {
         <div className="flex items-center justify-between mb-12 animate-fade-in">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-cinema-500 hover:text-white transition-colors duration-200 text-xs font-mono uppercase tracking-widest"
+            className="inline-flex items-center gap-1.5 text-cinema-500 hover:text-cinema-300 transition-colors duration-200 text-xs font-mono uppercase tracking-widest"
           >
             ← Back to moods
           </Link>
@@ -42,7 +42,7 @@ export default function Watchlist() {
 
         {/* Dynamic Title */}
         <div className="mb-12 animate-fade-in">
-          <h1 className="editorial-title font-display font-medium text-white max-w-3xl leading-tight">
+          <h1 className="editorial-title font-display font-medium text-cinema-300 max-w-3xl leading-tight">
             Your Watchlist
           </h1>
           {watchlist.length > 0 && (
@@ -58,7 +58,7 @@ export default function Watchlist() {
             {[...Array(5)].map((_, i) => (
               <div 
                 key={i} 
-                className="w-full aspect-[2/3] bg-cinema-900 border border-white/5 animate-pulse"
+                className="w-full aspect-[2/3] bg-cinema-900 border border-cinema-700/50 animate-pulse"
               />
             ))}
           </div>

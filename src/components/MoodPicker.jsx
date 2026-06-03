@@ -90,8 +90,8 @@ export default function MoodPicker() {
                 onClick={() => setContentType(opt.value)}
                 className={`px-4 py-2 text-xs font-body font-medium transition-all duration-200 border cursor-pointer rounded-none
                   ${isSelected
-                    ? 'bg-white text-black border-white'
-                    : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-white'
+                    ? 'bg-cinema-300 text-cinema-950 border-cinema-300'
+                    : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-cinema-300'
                   }`}
               >
                 {opt.label}
@@ -122,7 +122,7 @@ export default function MoodPicker() {
 
       {/* Follow-up inline rows if mood selected */}
       {selectedMood && (
-        <div className="space-y-6 pt-2 border-t border-white/5 animate-fade-in">
+        <div className="space-y-6 pt-2 border-t border-cinema-700/50 animate-fade-in">
           {/* Avoid row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <span className="text-xs uppercase tracking-widest text-cinema-400 font-mono">
@@ -137,8 +137,8 @@ export default function MoodPicker() {
                     onClick={() => toggleAvoidFilter(filter)}
                     className={`px-3 py-1.5 text-xs font-body font-medium transition-all duration-200 border cursor-pointer
                       ${isSelected 
-                        ? 'bg-white text-black border-white' 
-                        : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-white'}`}
+                        ? 'bg-cinema-300 text-cinema-950 border-cinema-300' 
+                        : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-cinema-300'}`}
                   >
                     {filter}
                   </button>
@@ -165,8 +165,8 @@ export default function MoodPicker() {
                     onClick={() => setEraFilter(opt.value)}
                     className={`px-3 py-1.5 text-xs font-body font-medium transition-all duration-200 border cursor-pointer
                       ${isSelected 
-                        ? 'bg-white text-black border-white' 
-                        : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-white'}`}
+                        ? 'bg-cinema-300 text-cinema-950 border-cinema-300' 
+                        : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-cinema-300'}`}
                   >
                     {opt.label}
                   </button>

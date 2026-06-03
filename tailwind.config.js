@@ -10,14 +10,14 @@ export default {
       colors: {
         // Flat, editorial dark theme (A24 meets Letterboxd style)
         cinema: {
-          950: '#000000', // Pure pitch black base
-          900: '#080808', // Card hover / search bar black
-          800: '#121212', // Card background / base panel
-          700: '#1c1c1c', // Solid dark borders
-          600: '#2a2a2a', // Selected border highlight
-          500: '#525252', // Muted text / label color
-          400: '#a3a3a3', // Secondary body text
-          300: '#d4d4d4', // Regular body text
+          950: 'var(--bg-cinema-950)',
+          900: 'var(--bg-cinema-900)',
+          800: 'var(--bg-cinema-800)',
+          700: 'var(--border-cinema-700)',
+          600: 'var(--border-cinema-600)',
+          500: 'var(--text-cinema-500)',
+          400: 'var(--text-cinema-400)',
+          300: 'var(--text-cinema-300)',
         },
         // Accent color (warm amber, used sparingly)
         accent: {
