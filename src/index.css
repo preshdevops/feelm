@@ -16,7 +16,7 @@
     --cinema-300: #d4d4d4;
   }
 
-  html.light {
+  :root.light {
     --cinema-950: #f8f8f8;
     --cinema-900: #ffffff;
     --cinema-800: #efefef;
@@ -27,7 +27,7 @@
     --cinema-300: #111111;
   }
 
-  html.light .navbar-bg {
+  :root.light .navbar-bg {
     background-color: var(--cinema-950);
     border-bottom-color: var(--cinema-700);
   }
