@@ -17,14 +17,19 @@
   }
 
   html.light {
-    --bg-cinema-950: #ffffff;
-    --bg-cinema-900: #f4f4f6;
-    --bg-cinema-800: #eaeaea;
-    --border-cinema-700: #e5e5e7;
-    --border-cinema-600: #d2d2d7;
-    --text-cinema-500: #86868b;
-    --text-cinema-400: #515154;
-    --text-cinema-300: #1d1d1f;
+    --bg-cinema-950: #f8f8f8;
+    --bg-cinema-900: #ffffff;
+    --bg-cinema-800: #efefef;
+    --border-cinema-700: #d8d8d8;
+    --border-cinema-600: #c0c0c0;
+    --text-cinema-500: #999999;
+    --text-cinema-400: #444444;
+    --text-cinema-300: #111111;
+  }
+
+  html.light nav {
+    border-bottom-color: #d8d8d8;
+    background-color: #ffffff;
   }
 
   body {
