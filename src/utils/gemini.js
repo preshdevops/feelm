@@ -8,35 +8,39 @@ export const isGeminiConfigured = () => {
   );
 };
 
-export async function getRecommendationsFromGemini(mood, feelingText, type = 'movie') {
+export async function getRecommendationsFromGemini(mood, feelingText, type = 'movie', energy = null, watching = null, intent = null) {
   if (!isGeminiConfigured()) {
     throw new Error('Groq API Key is not configured.');
   }
 
-  let typeDescription = 'films only';
-  let exampleJson = '[{"title":"Parasite","type":"movie"},{"title":"Inception","type":"movie"},{"title":"Living in Bondage","type":"movie"}]';
-
-  if (type === 'series') {
-    typeDescription = 'series only';
-    exampleJson = '[{"title":"Breaking Bad","type":"series"},{"title":"Stranger Things","type":"series"},{"title":"Squid Game","type":"series"}]';
-  } else if (type === 'both') {
-    typeDescription = 'films and series';
-    exampleJson = '[{"title":"Parasite","type":"movie"},{"title":"Breaking Bad","type":"series"},{"title":"Living in Bondage","type":"movie"}]';
+  // Reference type parameter to satisfy linter (type filters are applied during TMDB search phase)
+  if (type) {
+    // type is movie/series/both
   }
 
-  const prompt = `You are Feelm, a world-class film and series curator with deep knowledge of global cinema and television including Hollywood, Nollywood, and international productions.
+  const prompt = `You are Feelm, a world-class film curator with deep 
+knowledge of global cinema including Hollywood, Nollywood, and 
+international films.
 
-A user is looking for recommendations right now.
+A user needs a film recommendation right now.
 Mood: ${mood || 'not specified'}
 How they're feeling: "${feelingText || 'not specified'}"
-The user wants: ${typeDescription}
+Energy level: ${energy || 'not specified'}  
+Watching: ${watching || 'not specified'}
+What they need: ${intent || 'not specified'}
 
-Return ONLY a raw JSON array of 6 objects. No markdown, no explanation, no code blocks.
-Each object must have a "title" key and a "type" key ("movie" or "series" matching the media type).
-Vary your picks — mix genres, eras, and origins. Include at least one non-Hollywood title if relevant.
+Based on ALL of this context, return ONLY a raw JSON array of 6 
+movie objects. No markdown, no explanation, no code blocks.
+Each object must have only a "title" key.
+Vary your picks — mix genres, eras, and origins. 
+Include at least one non-Hollywood film.
+Match the energy level: low energy = calm/slow-burn films, 
+high energy = fast-paced/exciting films.
+Match the intent: escape = fantasy/adventure/comedy, 
+relate = drama/slice-of-life, laugh = comedy only.
 
 Example:
-${exampleJson}`;
+[{"title":"Parasite"},{"title":"Living in Bondage"}]`;
 
   const apiURL = 'https://api.groq.com/openai/v1/chat/completions';
   

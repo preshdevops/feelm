@@ -9,6 +9,14 @@ export default function AuthModal() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [prevAuthModalOpen, setPrevAuthModalOpen] = useState(authModalOpen);
+
+  if (authModalOpen !== prevAuthModalOpen) {
+    setPrevAuthModalOpen(authModalOpen);
+    if (authModalOpen && typeof window.authModalDefaultSignUp !== 'undefined') {
+      setIsSignUp(!!window.authModalDefaultSignUp);
+    }
+  }
 
   if (!authModalOpen) return null;
 

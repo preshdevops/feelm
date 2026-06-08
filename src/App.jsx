@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
+import Mood from './pages/Mood';
 import Results from './pages/Results';
 import MovieDetail from './pages/MovieDetail';
 import Watchlist from './pages/Watchlist';
@@ -24,6 +25,7 @@ export default function App() {
             <main className="flex-1">
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/mood" element={<Mood />} />
                 <Route path="/results" element={<Results />} />
                 <Route path="/movie/:id" element={<MovieDetail />} />
                 <Route path="/watchlist" element={<Watchlist />} />

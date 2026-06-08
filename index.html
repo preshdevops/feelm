@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <script>
       (function() {
         try {
           var theme = localStorage.getItem('feelm_theme');
-          if (theme === 'light') {
-            document.documentElement.classList.remove('dark');
-          } else {
+          if (theme === 'dark') {
             document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
           }
         } catch (e) {}
       })();

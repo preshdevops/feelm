@@ -7,20 +7,13 @@ export default function MoodPicker() {
   const [selectedMood, setSelectedMood] = useState(null);
   const [feelingText, setFeelingText] = useState('');
   const [contentType, setContentType] = useState('movie');
-  const [avoidFilters, setAvoidFilters] = useState([]);
-  const [eraFilter, setEraFilter] = useState('Either');
+  const [energy, setEnergy] = useState(null);
+  const [watching, setWatching] = useState(null);
+  const [intent, setIntent] = useState(null);
   const navigate = useNavigate();
 
   const handleMoodClick = (moodId) => {
     setSelectedMood((prev) => (prev === moodId ? null : moodId));
-  };
-
-  const toggleAvoidFilter = (filter) => {
-    setAvoidFilters((prev) =>
-      prev.includes(filter)
-        ? prev.filter((item) => item !== filter)
-        : [...prev, filter]
-    );
   };
 
   const handleSubmit = () => {
@@ -28,18 +21,15 @@ export default function MoodPicker() {
     if (selectedMood) params.set('mood', selectedMood);
     params.set('type', contentType);
 
-    // Dynamic prompt construction to pass selections cleanly to Gemini/TMDB
-    let finalFeeling = feelingText.trim();
-    if (avoidFilters.length > 0) {
-      finalFeeling += `${finalFeeling ? '. ' : ''}Strictly avoid these elements: ${avoidFilters.join(', ')}`;
-    }
-    if (eraFilter !== 'Either') {
-      finalFeeling += `${finalFeeling ? '. ' : ''}Only recommend films that are: ${
-        eraFilter === 'New' ? 'released after 2015 (Modern)' : 'released before 2000 (Classic)'
-      }`;
+    const finalFeeling = feelingText.trim();
+    if (finalFeeling.trim()) params.set('feeling', finalFeeling.trim());
+
+    if (selectedMood) {
+      if (energy) params.set('energy', energy);
+      if (watching) params.set('watching', watching);
+      if (intent) params.set('intent', intent);
     }
 
-    if (finalFeeling.trim()) params.set('feeling', finalFeeling.trim());
     sessionStorage.removeItem('feelm_results');
     sessionStorage.removeItem('feelm_results_mood');
     sessionStorage.removeItem('feelm_results_feeling');
@@ -88,10 +78,10 @@ export default function MoodPicker() {
                 key={opt.value}
                 type="button"
                 onClick={() => setContentType(opt.value)}
-                className={`px-4 py-2 text-xs font-body font-medium transition-all duration-200 border cursor-pointer rounded-none
+                className={`px-4 py-2 text-xs font-body font-medium transition-all duration-200 border cursor-pointer rounded-lg hover:scale-[1.02]
                   ${isSelected
-                    ? 'bg-cinema-300 text-cinema-950 border-cinema-300'
-                    : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-cinema-300'
+                    ? 'bg-cinema-800 text-accent border-accent'
+                    : 'bg-cinema-900 text-cinema-400 border-cinema-700 hover:border-cinema-600 hover:text-cinema-300'
                   }`}
               >
                 {opt.label}
@@ -100,7 +90,6 @@ export default function MoodPicker() {
           })}
         </div>
       </div>
-
 
       {/* Search Input for describing vibe */}
       <div className="space-y-3">
@@ -115,58 +104,94 @@ export default function MoodPicker() {
             onChange={(e) => setFeelingText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && isReady && handleSubmit()}
             placeholder="or just tell us how you're feeling..."
-            className="minimal-search"
+            className="minimal-search rounded-lg"
           />
         </div>
       </div>
 
       {/* Follow-up inline rows if mood selected */}
       {selectedMood && (
-        <div className="space-y-6 pt-2 border-t border-cinema-700/50 animate-fade-in">
-          {/* Avoid row */}
+        <div className="space-y-6 pt-6 border-t border-cinema-700/50 animate-fade-in">
+          {/* Question 1 — Energy check */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <span className="text-xs uppercase tracking-widest text-cinema-400 font-mono">
-              Anything to avoid?
+            <span className="text-xs uppercase tracking-widest text-cinema-500 font-mono">
+              How's your energy right now?
             </span>
             <div className="flex flex-wrap gap-2">
-              {['Violence', 'Romance', 'Horror', 'Animation'].map((filter) => {
-                const isSelected = avoidFilters.includes(filter);
+              {[
+                { value: 'low', label: 'Running on empty' },
+                { value: 'mid', label: 'Somewhere in between' },
+                { value: 'high', label: 'Fully charged' }
+              ].map((opt) => {
+                const isSelected = energy === opt.value;
                 return (
                   <button
-                    key={filter}
-                    onClick={() => toggleAvoidFilter(filter)}
-                    className={`px-3 py-1.5 text-xs font-body font-medium transition-all duration-200 border cursor-pointer
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setEnergy(isSelected ? null : opt.value)}
+                    className={`px-4 py-2 text-xs font-body font-medium transition-all duration-200 border cursor-pointer rounded-lg hover:scale-[1.02]
                       ${isSelected 
-                        ? 'bg-cinema-300 text-cinema-950 border-cinema-300' 
-                        : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-cinema-300'}`}
+                        ? 'bg-cinema-800 text-accent border-accent' 
+                        : 'bg-cinema-900 text-cinema-400 border-cinema-700 hover:border-cinema-600 hover:text-cinema-300'}`}
                   >
-                    {filter}
+                    {opt.label}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Era row */}
+          {/* Question 2 — Social context */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <span className="text-xs uppercase tracking-widest text-cinema-400 font-mono">
-              New or classic?
+            <span className="text-xs uppercase tracking-widest text-cinema-500 font-mono">
+              Watching with...?
             </span>
             <div className="flex flex-wrap gap-2">
               {[
-                { value: 'New', label: 'New (post 2015)' },
-                { value: 'Classic', label: 'Classic (pre 2000)' },
-                { value: 'Either', label: 'Either' }
+                { value: 'alone', label: 'Just me' },
+                { value: 'partner', label: 'Someone special' },
+                { value: 'group', label: 'The whole squad' }
               ].map((opt) => {
-                const isSelected = eraFilter === opt.value;
+                const isSelected = watching === opt.value;
                 return (
                   <button
                     key={opt.value}
-                    onClick={() => setEraFilter(opt.value)}
-                    className={`px-3 py-1.5 text-xs font-body font-medium transition-all duration-200 border cursor-pointer
+                    type="button"
+                    onClick={() => setWatching(isSelected ? null : opt.value)}
+                    className={`px-4 py-2 text-xs font-body font-medium transition-all duration-200 border cursor-pointer rounded-lg hover:scale-[1.02]
                       ${isSelected 
-                        ? 'bg-cinema-300 text-cinema-950 border-cinema-300' 
-                        : 'bg-transparent text-cinema-400 border-cinema-700 hover:border-cinema-500 hover:text-cinema-300'}`}
+                        ? 'bg-cinema-800 text-accent border-accent' 
+                        : 'bg-cinema-900 text-cinema-400 border-cinema-700 hover:border-cinema-600 hover:text-cinema-300'}`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Question 3 — Emotional intent */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span className="text-xs uppercase tracking-widest text-cinema-500 font-mono">
+              What do you need from this film?
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'escape', label: 'Take me somewhere else' },
+                { value: 'relate', label: 'Help me feel understood' },
+                { value: 'laugh', label: 'Just make me laugh' },
+                { value: 'unsure', label: "I don't know yet" }
+              ].map((opt) => {
+                const isSelected = intent === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setIntent(isSelected ? null : opt.value)}
+                    className={`px-4 py-2 text-xs font-body font-medium transition-all duration-200 border cursor-pointer rounded-lg hover:scale-[1.02]
+                      ${isSelected 
+                        ? 'bg-cinema-800 text-accent border-accent' 
+                        : 'bg-cinema-900 text-cinema-400 border-cinema-700 hover:border-cinema-600 hover:text-cinema-300'}`}
                   >
                     {opt.label}
                   </button>
@@ -184,8 +209,8 @@ export default function MoodPicker() {
             id="find-movie-btn"
             onClick={handleSubmit}
             className="inline-flex items-center justify-center px-8 py-3.5
-                       bg-accent hover:bg-accent-hover text-black font-body font-semibold text-sm
-                       uppercase tracking-widest transition-colors duration-300"
+                       bg-accent hover:bg-accent-hover text-cinema-950 font-body font-semibold text-xs
+                       uppercase tracking-widest transition-colors duration-200 rounded-lg cursor-pointer hover:scale-[1.02]"
           >
             Find my film →
           </button>

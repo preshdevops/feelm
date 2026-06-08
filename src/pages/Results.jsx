@@ -34,6 +34,9 @@ export default function Results() {
   const moodId = searchParams.get('mood');
   const feeling = searchParams.get('feeling');
   const type = searchParams.get('type') || 'movie';
+  const energy = searchParams.get('energy');
+  const watching = searchParams.get('watching');
+  const intent = searchParams.get('intent');
 
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +107,10 @@ export default function Results() {
           const aiRecommendations = await getRecommendationsFromGemini(
             moodLabel, 
             (feeling || '') + shuffleSeed,
-            type
+            type,
+            energy,
+            watching,
+            intent
           );
           
           // Search each recommendation on TMDB in parallel (using TMDB search)
@@ -245,7 +251,7 @@ export default function Results() {
     }
 
     fetchVibeMovies();
-  }, [moodId, feeling, selectedMood, shuffleCount, type]);
+  }, [moodId, feeling, selectedMood, shuffleCount, type, energy, watching, intent]);
 
   const handleShuffle = () => {
     setShuffleCount((prev) => prev + 1);

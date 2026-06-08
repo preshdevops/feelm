@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useAuth } from '../context/AuthContext';
 
@@ -7,7 +7,9 @@ export default function Navbar() {
   const { isDark, toggle } = useDarkMode();
   const { user, logout, setAuthModalOpen } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
+  const location = useLocation();
+  
+  const isLandingPage = location.pathname === '/';
   const initial = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
 
   return (
@@ -26,6 +28,15 @@ export default function Navbar() {
 
         {/* Right side container */}
         <div className="flex items-center gap-6">
+          {isLandingPage && (
+            <a
+              href="#how-it-works"
+              className="text-xs text-cinema-400 hover:text-cinema-300 transition-colors font-mono uppercase tracking-widest font-semibold"
+            >
+              How it works
+            </a>
+          )}
+
           {/* Watchlist/Auth Controls */}
           {user ? (
             <div className="relative">
@@ -60,9 +71,33 @@ export default function Navbar() {
                 </>
               )}
             </div>
+          ) : isLandingPage ? (
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  window.authModalDefaultSignUp = false;
+                  setAuthModalOpen(true);
+                }}
+                className="text-xs text-cinema-400 hover:text-cinema-300 transition-colors font-mono uppercase tracking-widest font-semibold cursor-pointer"
+              >
+                Log in
+              </button>
+              <button
+                onClick={() => {
+                  window.authModalDefaultSignUp = true;
+                  setAuthModalOpen(true);
+                }}
+                className="text-xs text-accent hover:text-accent-hover transition-colors font-mono uppercase tracking-widest font-semibold cursor-pointer"
+              >
+                Sign up
+              </button>
+            </div>
           ) : (
             <button
-              onClick={() => setAuthModalOpen(true)}
+              onClick={() => {
+                window.authModalDefaultSignUp = false;
+                setAuthModalOpen(true);
+              }}
               className="text-xs text-accent hover:text-accent-hover transition-colors font-mono uppercase tracking-widest font-semibold cursor-pointer"
             >
               Sign In

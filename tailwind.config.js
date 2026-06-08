@@ -19,15 +19,16 @@ export default {
           400: 'var(--cinema-400)',
           300: 'var(--cinema-300)',
         },
-        // Accent color (warm amber, used sparingly)
+        // Accent color (warm amber-brown, dynamically resolved)
         accent: {
-          DEFAULT: '#F59E0B',
-          hover: '#D97706',
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
         },
       },
       fontFamily: {
         display: ['"Playfair Display"', 'serif'],
         body: ['Inter', 'sans-serif'],
+        mono: ['"DM Mono"', 'monospace'],
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',

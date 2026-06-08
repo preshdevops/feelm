@@ -11,7 +11,7 @@ export function ThemeProvider({ children }) {
     } catch (e) {
       console.warn('localStorage is not available:', e);
     }
-    return true; // default dark
+    return false; // light is default now
   });
 
   useEffect(() => {

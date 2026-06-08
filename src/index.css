@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=DM+Mono:ital,wght@0,300;0,400;0,500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,38 +6,37 @@
 
 @layer base {
   :root {
-    --cinema-950: #000000;
-    --cinema-900: #080808;
-    --cinema-800: #121212;
-    --cinema-700: #1c1c1c;
-    --cinema-600: #2a2a2a;
-    --cinema-500: #525252;
-    --cinema-400: #a3a3a3;
-    --cinema-300: #d4d4d4;
+    --cinema-950: #FAFAF7;
+    --cinema-900: #FFFFFF;
+    --cinema-800: #F0EFE9;
+    --cinema-700: #E2E0D8;
+    --cinema-600: #C4C1B5;
+    --cinema-500: #8C8980;
+    --cinema-400: #4A4740;
+    --cinema-300: #1A1814;
+    --accent: #C17B2F;
+    --accent-hover: #A66820;
   }
 
-  :root.light {
-    --cinema-950: #f8f8f8;
-    --cinema-900: #ffffff;
-    --cinema-800: #efefef;
-    --cinema-700: #d8d8d8;
-    --cinema-600: #c0c0c0;
-    --cinema-500: #999999;
-    --cinema-400: #444444;
-    --cinema-300: #111111;
-  }
-
-  :root.light .navbar-bg {
-    background-color: var(--cinema-950);
-    border-bottom-color: var(--cinema-700);
+  html.dark {
+    --cinema-950: #0F0E0C;
+    --cinema-900: #1A1814;
+    --cinema-800: #242118;
+    --cinema-700: #2E2B20;
+    --cinema-600: #3D3A2E;
+    --cinema-500: #6B6860;
+    --cinema-400: #A8A499;
+    --cinema-300: #E8E4D8;
+    --accent: #C17B2F;
+    --accent-hover: #D4893A;
   }
 
   *, *::before, *::after {
-    transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   }
 
   body {
-    @apply font-body text-cinema-300 bg-cinema-950 antialiased;
+    @apply font-body text-cinema-400 bg-cinema-950 antialiased;
     letter-spacing: -0.01em;
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   }
@@ -125,5 +124,23 @@
 
 /* Selection styling */
 ::selection {
-  @apply bg-accent/20 text-accent;
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+}
+
+/* Film grain overlay */
+.film-grain {
+  position: relative;
+}
+.film-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.015;
+  z-index: 1;
+  background-image: radial-gradient(circle, var(--cinema-300) 1px, transparent 1px);
+  background-size: 4px 4px;
 }
