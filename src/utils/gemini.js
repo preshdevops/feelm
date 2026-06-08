@@ -1,4 +1,5 @@
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const MODEL = 'llama-3.3-70b-versatile';
 
 export const isGeminiConfigured = () => {
   return (
@@ -8,150 +9,140 @@ export const isGeminiConfigured = () => {
   );
 };
 
-export async function getRecommendationsFromGemini(mood, feelingText, type = 'movie', energy = null, watching = null, intent = null) {
-  if (!isGeminiConfigured()) {
-    throw new Error('Groq API Key is not configured.');
-  }
-
-  // Reference type parameter to satisfy linter (type filters are applied during TMDB search phase)
-  if (type) {
-    // type is movie/series/both
-  }
-
-  const prompt = `You are Feelm, a world-class film curator with deep 
-knowledge of global cinema including Hollywood, Nollywood, and 
-international films.
-
-A user needs a film recommendation right now.
-Mood: ${mood || 'not specified'}
-How they're feeling: "${feelingText || 'not specified'}"
-Energy level: ${energy || 'not specified'}  
-Watching: ${watching || 'not specified'}
-What they need: ${intent || 'not specified'}
-
-Based on ALL of this context, return ONLY a raw JSON array of 6 
-movie objects. No markdown, no explanation, no code blocks.
-Each object must have only a "title" key.
-Vary your picks — mix genres, eras, and origins. 
-Include at least one non-Hollywood film.
-Match the energy level: low energy = calm/slow-burn films, 
-high energy = fast-paced/exciting films.
-Match the intent: escape = fantasy/adventure/comedy, 
-relate = drama/slice-of-life, laugh = comedy only.
-
-Example:
-[{"title":"Parasite"},{"title":"Living in Bondage"}]`;
-
-  const apiURL = 'https://api.groq.com/openai/v1/chat/completions';
-  
-  const response = await fetch(apiURL, {
+async function callGroq(prompt, temperature = 0.8) {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
+      model: MODEL,
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7
+      temperature
     })
   });
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
-    throw new Error(`Groq API failed with status: ${response.status}. Details: ${errText}`);
+    throw new Error(`Groq API failed with status: ${response.status}. ${errText}`);
   }
-
 
   const data = await response.json();
   const text = data.choices?.[0]?.message?.content;
-  
-  if (!text) {
-    throw new Error('Empty response from Groq API.');
-  }
-
-  const recommendations = JSON.parse(text.trim());
-  if (Array.isArray(recommendations)) {
-    return recommendations;
-  }
-  
-  throw new Error('Groq did not return an array.');
+  if (!text) throw new Error('Empty response from Groq.');
+  return text.trim();
 }
 
-/**
- * Generates a custom 1-2 sentence recommendation reason/blurb for a specific movie based on user mood/feeling.
- * @param {Object} movie - Movie details from TMDB
- * @param {string} mood - Selected mood category
- * @param {string} feeling - Freeform user feeling input
- * @returns {Promise<string>} - The custom blurb text
- */
-export async function generateMovieBlurb(movie, mood, feeling) {
-  const movieId = movie.id || movie.movie_id;
-  const cacheKey = `feelm_blurb_${movieId}`;
+// Maps raw param values to human-readable strings for the prompt
+function describeContext(energy, watching, intent) {
+  const energyMap = {
+    low: 'running on empty — exhausted, low energy',
+    mid: 'somewhere in between — not tired but not buzzing',
+    high: 'fully charged — alert and ready for something engaging'
+  };
+  const watchingMap = {
+    alone: 'watching alone',
+    partner: 'watching with someone special',
+    group: 'watching with a group'
+  };
+  const intentMap = {
+    escape: 'wants to be transported somewhere completely different — pure escapism',
+    relate: 'wants to feel understood, to see their experience reflected on screen',
+    laugh: 'just wants to laugh and not think too hard',
+    unsure: 'not sure what they need yet — open to anything that resonates'
+  };
 
-  // Check localStorage first
+  const parts = [];
+  if (energy && energyMap[energy]) parts.push(`Energy: ${energyMap[energy]}`);
+  if (watching && watchingMap[watching]) parts.push(`Context: ${watchingMap[watching]}`);
+  if (intent && intentMap[intent]) parts.push(`What they need: ${intentMap[intent]}`);
+  return parts.join('\n');
+}
+
+export async function getRecommendationsFromGemini(
+  mood, feelingText, type = 'movie',
+  energy = null, watching = null, intent = null
+) {
+  if (!isGeminiConfigured()) throw new Error('Groq API key not configured.');
+
+  const context = describeContext(energy, watching, intent);
+
+  const typeInstruction =
+    type === 'series' ? 'Recommend TV series only — no films.' :
+    type === 'both'   ? 'Mix films and TV series. For series, add "type": "series" to the object.' :
+                        'Recommend films only — no TV series.';
+
+  const prompt = `You are Feelm — a deeply human film curator who understands that what someone needs to watch right now is rarely about genre alone. It's about where they are emotionally.
+
+A user needs a recommendation RIGHT NOW. Read their full situation carefully:
+
+Mood: ${mood || 'not specified'}
+${feelingText ? `In their own words: "${feelingText}"` : ''}
+${context ? `\n${context}` : ''}
+
+${typeInstruction}
+
+Your job: recommend 6 titles that genuinely fit THIS person in THIS moment — not just the mood label. Think about pacing, emotional register, what the film asks of its audience, and whether that matches their energy and intent right now.
+
+Rules:
+- At least 2 non-Hollywood picks (Nollywood, Korean, French, Japanese, Nigerian, etc.)
+- Vary the eras — don't stack everything from the last 5 years
+- If energy is low, avoid films that demand intense concentration or are emotionally exhausting
+- If intent is "escape", lean toward propulsive narratives and worlds worth getting lost in
+- If intent is "relate", lean toward intimate character studies and emotionally honest stories
+- If watching with a partner or group, avoid films that are too slow or solitary in feeling
+
+Return ONLY a raw JSON array. No markdown. No explanation. No code blocks.
+Each object has only a "title" key (and optionally "type": "series" if it's a TV series).
+
+Example: [{"title":"Parasite"},{"title":"The Secret Life of Walter Mitty"},{"title":"Living in Bondage: Breaking Free"}]`;
+
+  const text = await callGroq(prompt, 0.85);
+
+  // Strip any accidental markdown fences
+  const clean = text.replace(/```json|```/g, '').trim();
+  const recommendations = JSON.parse(clean);
+
+  if (!Array.isArray(recommendations)) throw new Error('Groq did not return an array.');
+  return recommendations;
+}
+
+export async function generateMovieBlurb(movie, mood, feeling, energy = null, watching = null, intent = null) {
+  const movieId = movie.id || movie.movie_id;
+  const cacheKey = `feelm_blurb_${movieId}_${mood || ''}_${energy || ''}_${intent || ''}`;
+
   try {
     const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      return cached;
-    }
+    if (cached) return cached;
   } catch (e) {
-    console.warn('localStorage read failed in generateMovieBlurb:', e);
+    // localStorage unavailable, continue
   }
 
-  if (!isGeminiConfigured()) {
-    throw new Error('Groq API Key is not configured.');
+  if (!isGeminiConfigured()) throw new Error('Groq API key not configured.');
+
+  const context = describeContext(energy, watching, intent);
+
+  const prompt = `You are writing a personal recommendation note for someone about to watch "${movie.title}" (${movie.year || ''}).
+
+Their situation right now:
+Mood: ${mood || 'not specified'}
+${feeling ? `How they described it: "${feeling}"` : ''}
+${context || ''}
+
+Film overview: "${movie.overview}"
+
+Write 1–2 sentences that speak directly to WHY this film fits them right now — not what the film is about, but what it will give them given where they are emotionally. Be specific to their situation. Sound like a friend who knows both them and cinema well, not a critic or an algorithm.
+
+Keep it under 35 words. Return only the text — no quotes, no labels, no explanation.`;
+
+  const blurb = await callGroq(prompt, 0.75);
+
+  try {
+    localStorage.setItem(cacheKey, blurb);
+  } catch (e) {
+    // localStorage unavailable
   }
 
-  const prompt = `
-    You are a premium film critic and recommendation AI named "Feelm" (A24 meets Letterboxd aesthetic).
-    Write a warm, empathetic 1-2 sentence vibe match explanation explaining why the film "${movie.title}" (${movie.year || ''}) fits a user who is:
-    Mood: ${mood || 'None specified'}
-    Feeling Description: "${feeling || 'None specified'}"
-    
-    Here is the film's overview for reference: "${movie.overview}"
-    
-    Guidelines:
-    - Focus on the vibe, theme, or mood matching.
-    - Speak directly to the user (e.g. "This film's cozy atmosphere will help you unwind...").
-    - Do not mention "Gemini", "AI", or "TMDB".
-    - Keep it short (max 2 sentences, under 30 words).
-    - Return ONLY the raw blurb text. Do not wrap in markdown or quotes.
-  `;
-
-  const apiURL = 'https://api.groq.com/openai/v1/chat/completions';
-  
-  const response = await fetch(apiURL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.6
-    })
-  });
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new Error(`Groq API failed with status: ${response.status}. Details: ${errText}`);
-  }
-
-
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-  
-  if (text) {
-    const blurb = text.trim();
-    try {
-      localStorage.setItem(cacheKey, blurb);
-    } catch (e) {
-      console.warn('localStorage write failed in generateMovieBlurb:', e);
-    }
-    return blurb;
-  }
-
-  throw new Error(`Failed to generate blurb for "${movie.title}".`);
+  return blurb;
 }

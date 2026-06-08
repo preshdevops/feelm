@@ -208,7 +208,7 @@ export default function Results() {
             }
 
             try {
-              blurb = await generateMovieBlurb(movie, moodLabel, feeling);
+              blurb = await generateMovieBlurb(movie, moodLabel, feeling, energy, watching, intent);
               if (blurb) {
                 try {
                   localStorage.setItem(cacheKey, blurb);
