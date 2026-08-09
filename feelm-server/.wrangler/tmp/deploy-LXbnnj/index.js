@@ -14228,6 +14228,16 @@ var watchlist_default = router2;
 // routes/movies.js
 var router3 = new Hono2();
 var GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"];
+var MOOD_GENRE_MAP = {
+  happy: 35,
+  sad: 18,
+  stressed: 53,
+  romantic: 10749,
+  adventurous: 12,
+  bored: 9648,
+  inspired: 99,
+  scared: 27
+};
 var getPosterUrl = /* @__PURE__ */ __name((path, size = "w500") => {
   if (!path) return "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop";
   return `https://image.tmdb.org/t/p/${size}${path}`;
@@ -14236,6 +14246,41 @@ var getBackdropUrl = /* @__PURE__ */ __name((path, size = "original") => {
   if (!path) return "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1200&auto=format&fit=crop";
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }, "getBackdropUrl");
+router3.get("/mood-backdrop", async (c) => {
+  const mood = c.req.query("mood");
+  if (!mood || !MOOD_GENRE_MAP[mood]) {
+    return c.json({ backdrops: [] }, 200);
+  }
+  const TMDB_API_KEY = c.env?.TMDB_API_KEY || process.env.TMDB_API_KEY;
+  if (!TMDB_API_KEY || TMDB_API_KEY === "your_tmdb_key_here") {
+    return c.json({ backdrops: [] }, 200);
+  }
+  try {
+    const genreId = MOOD_GENRE_MAP[mood];
+    const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_genres=${genreId}&sort_by=popularity.desc&page=1&language=en-US`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      return c.json({ backdrops: [] }, 200);
+    }
+    const data = await response.json();
+    const results = (data.results || []).filter((item) => item.backdrop_path);
+    if (results.length === 0) {
+      return c.json({ backdrops: [] }, 200);
+    }
+    for (let i = results.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [results[i], results[j]] = [results[j], results[i]];
+    }
+    const backdrops = results.slice(0, 5).map((item) => ({
+      url: `https://image.tmdb.org/t/p/original${item.backdrop_path}`,
+      title: item.title
+    }));
+    return c.json({ backdrops }, 200);
+  } catch (error) {
+    console.error("Backend: Error fetching mood-backdrop:", error);
+    return c.json({ backdrops: [] }, 200);
+  }
+});
 router3.post("/classify-mood", async (c) => {
   let body = {};
   try {
