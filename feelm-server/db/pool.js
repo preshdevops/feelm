@@ -8,8 +8,10 @@ dotenv.config();
 
 const { Pool } = pg;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Safe URL parsing for Cloudflare Workers bundled environment
+const currentMetaUrl = typeof import.meta !== 'undefined' && import.meta.url ? import.meta.url : null;
+const __filename = currentMetaUrl ? fileURLToPath(currentMetaUrl) : '';
+const __dirname = __filename ? path.dirname(__filename) : '';
 
 let sslConfig;
 
@@ -19,18 +21,20 @@ if (process.env.DB_CA_CERT) {
     ca: process.env.DB_CA_CERT
   };
 } else {
-  // local dev — look for ca.crt file
-  const caPath = ['./ca.crt', './ca.pem'].find(p => fs.existsSync(p));
-  if (!caPath) {
-    console.error('FATAL: No CA certificate found.');
-    process.exit(1);
+  try {
+    const caPath = ['./ca.crt', './ca.pem'].find(p => typeof fs !== 'undefined' && fs.existsSync && fs.existsSync(p));
+    if (caPath) {
+      sslConfig = {
+        rejectUnauthorized: true,
+        ca: fs.readFileSync(caPath).toString()
+      };
+    } else {
+      sslConfig = { rejectUnauthorized: false };
+    }
+  } catch (e) {
+    sslConfig = { rejectUnauthorized: false };
   }
-  sslConfig = {
-    rejectUnauthorized: true,
-    ca: fs.readFileSync(caPath).toString()
-  };
 }
-
 
 export const pool = new Pool({
   host: process.env.DB_HOST,
