@@ -1,17 +1,21 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "feelm-api",
-  "main": "index.js",
-  "compatibility_date": "2026-08-01",
-  "compatibility_flags": ["nodejs_compat"],
-  "vars": {
-    "CORS_ORIGIN": "https://feelms.vercel.app"
-  },
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      "id": "PASTE_THE_ID_FROM_STEP_1"
-    }
-  ],
-  "observability": { "enabled": false }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "feelm-api",
+	"main": "index.js",
+	"compatibility_date": "2026-08-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"vars": {
+		"CORS_ORIGIN": "https://feelms.vercel.app"
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "0fce2501dd984cd2b02fd7405e0878a8"
+		}
+	],
+	"observability": {
+		"enabled": false
+	}
 }

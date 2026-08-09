@@ -1,9 +1,11 @@
 import MoodPicker from '../components/MoodPicker';
+import MoodBackground from '../components/MoodBackground';
 
 export default function Mood() {
   return (
-    <div className="page-container min-h-screen flex flex-col justify-center">
-      <div className="content-container py-16 md:py-24 space-y-12 animate-fade-in">
+    <div className="page-container min-h-screen flex flex-col justify-center relative">
+      <MoodBackground />
+      <div className="content-container py-16 md:py-24 space-y-12 animate-fade-in relative z-10">
         {/* Editorial Header */}
         <div className="text-center sm:text-left space-y-4 max-w-2xl">
           <h1 className="font-display italic font-semibold text-5xl sm:text-6xl text-cinema-300 tracking-tight leading-none">

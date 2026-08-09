@@ -1,16 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MoodCard from './MoodCard';
 import { moods } from '../utils/moods';
+import useMoodBackground from '../hooks/useMoodBackground';
 
 export default function MoodPicker() {
   const [selectedMood, setSelectedMood] = useState(null);
+  const [typedMood, setTypedMood] = useState(null);
   const [feelingText, setFeelingText] = useState('');
   const [contentType, setContentType] = useState('movie');
   const [energy, setEnergy] = useState(null);
   const [watching, setWatching] = useState(null);
   const [intent, setIntent] = useState(null);
   const navigate = useNavigate();
+
+  const debounceTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    const trimmed = feelingText.trim();
+    if (trimmed.length > 2) {
+      debounceTimerRef.current = setTimeout(async () => {
+        try {
+          const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+          const res = await fetch(`${API_BASE}/movies/classify-mood`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ text: trimmed }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.moodId) {
+              const matched = moods.find((m) => m.id === data.moodId);
+              setTypedMood(matched || null);
+            } else {
+              setTypedMood(null);
+            }
+          } else {
+            setTypedMood(null);
+          }
+        } catch (err) {
+          setTypedMood(null);
+        }
+      }, 600);
+    } else {
+      setTypedMood(null);
+    }
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [feelingText]);
+
+  // Clicked mood takes priority over typed/classified mood
+  const activeMood = selectedMood ? moods.find((m) => m.id === selectedMood) : typedMood;
+  useMoodBackground(activeMood);
 
   const handleMoodClick = (moodId) => {
     setSelectedMood((prev) => (prev === moodId ? null : moodId));

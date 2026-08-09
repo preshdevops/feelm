@@ -15,6 +15,105 @@ const getBackdropUrl = (path, size = 'original') => {
 };
 
 /**
+ * POST /classify-mood
+ * Classifies user typed text into one of the preset mood IDs using Gemini.
+ * Fails silently with { moodId: null } on any error.
+ */
+router.post('/classify-mood', async (c) => {
+  let body = {};
+  try {
+    body = await c.req.json();
+  } catch (err) {
+    return c.json({ moodId: null });
+  }
+
+  const { text } = body || {};
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return c.json({ moodId: null });
+  }
+
+  const GEMINI_API_KEY = c.env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_key_here') {
+    return c.json({ moodId: null });
+  }
+
+  const validMoods = ["happy", "sad", "stressed", "romantic", "adventurous", "bored", "inspired", "scared"];
+
+  const prompt = `
+    You are a sentiment and mood classification AI.
+    Given the user's typed description of how they are feeling:
+    "${text.trim()}"
+
+    Classify the vibe into EXACTLY ONE of the following valid mood IDs:
+    ${JSON.stringify(validMoods)}
+
+    If the text matches or strongly relates to one of these mood IDs, return raw JSON in the exact format:
+    { "moodId": "<matching_mood_id>" }
+
+    If nothing matches reasonably well, return raw JSON:
+    { "moodId": null }
+
+    CRITICAL: Do not wrap your response in markdown code blocks. Return raw JSON only.
+  `;
+
+  for (const model of GEMINI_MODELS) {
+    const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    
+    try {
+      const response = await fetch(apiURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.2,
+          },
+        }),
+      });
+
+      if (response.status === 404) {
+        continue;
+      }
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json();
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!rawText) {
+        continue;
+      }
+
+      const parsed = JSON.parse(rawText.trim());
+      const moodId = parsed?.moodId;
+
+      if (moodId && validMoods.includes(moodId)) {
+        return c.json({ moodId });
+      } else {
+        return c.json({ moodId: null });
+      }
+    } catch (error) {
+      console.error(`Backend: Error in classify-mood with model ${model}:`, error);
+    }
+  }
+
+  return c.json({ moodId: null });
+});
+
+/**
  * POST /recommendations
  * Gets movie recommendations (list of titles) from Gemini based on user mood/feeling text.
  */
