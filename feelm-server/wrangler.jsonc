@@ -3,13 +3,15 @@
   "name": "feelm-api",
   "main": "index.js",
   "compatibility_date": "2026-08-01",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "CORS_ORIGIN": "https://feelms.vercel.app"
   },
-  "observability": {
-    "enabled": false
-  }
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "PASTE_THE_ID_FROM_STEP_1"
+    }
+  ],
+  "observability": { "enabled": false }
 }
