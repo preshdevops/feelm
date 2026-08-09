@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 
 // Enable CORS for frontend client
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: process.env.CORS_ORIGIN || '*',
   credentials: true
 }));
 
@@ -23,7 +23,7 @@ app.use(express.json());
 
 // Rate limiter for auth routes
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 20,
   message: { error: 'Too many attempts. Please try again in 15 minutes.' }
 });
@@ -34,23 +34,39 @@ app.use('/api/auth', authRoutes);
 app.use('/api/watchlist', watchlistRoutes);
 app.use('/api/movies', moviesRoutes);
 
-
-// Root test endpoint
+// Root health & status endpoint
 app.get('/', (req, res) => {
-  res.json({ message: 'Feelm API server running.' });
+  res.json({ message: 'Feelm Express API server running on Cloudflare Workers.' });
 });
 
-// Run table creation & start server listening
-async function startServer() {
-  try {
-    await initDb();
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Server startup failed due to database error:', error);
-    process.exit(1);
+// Start local Node.js server if executed directly
+if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production' && !process.env.CF_PAGES) {
+  async function startServer() {
+    try {
+      await initDb();
+      app.listen(PORT, () => {
+        console.log(`Express server running locally on port ${PORT}`);
+      });
+    } catch (error) {
+      console.error('Server startup failed:', error);
+    }
   }
+  startServer();
 }
 
-startServer();
+// Export native Cloudflare Workers httpServerHandler for Express
+let cloudflareHandler;
+try {
+  const { httpServerHandler } = await import('cloudflare:node');
+  cloudflareHandler = httpServerHandler({
+    port: PORT,
+    requestListener: app
+  });
+} catch (e) {
+  // Graceful fallback for non-Cloudflare environments
+  cloudflareHandler = {
+    fetch: (req) => app(req)
+  };
+}
+
+export default cloudflareHandler;

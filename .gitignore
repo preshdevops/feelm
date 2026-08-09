@@ -12,9 +12,11 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+# Editor & Agent directories
+.vscode/
+.vscode
+.agents/
+.agents
 .idea
 .DS_Store
 *.suo
@@ -30,4 +32,3 @@ feelm-server/ca.pem
 .env
 .env.local
 .env.*.local
-

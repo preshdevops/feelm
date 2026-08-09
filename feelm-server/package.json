@@ -1,11 +1,13 @@
 {
   "name": "feelm-server",
   "version": "1.0.0",
-  "description": "Backend API server for Feelm mood-based movie recommendation watchlist and auth",
+  "description": "Native Express.js backend for Feelm deployed on Cloudflare Workers",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -15,5 +17,8 @@
     "express-rate-limit": "^8.5.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.5"
+  },
+  "devDependencies": {
+    "wrangler": "^3.100.0"
   }
 }
