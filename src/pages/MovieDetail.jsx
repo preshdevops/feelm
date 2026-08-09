@@ -63,7 +63,7 @@ export default function MovieDetail() {
             ...mockMovie,
             tagline: 'A cinematic masterpiece matching your vibe.',
             cast: ['Lead Actor', 'Supporting Actor', 'Featured Guest'],
-            trailerUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ', // Default demo trailer
+            trailerUrl: null,
           });
         } else {
           setError('Movie not found in demo library.');
@@ -83,7 +83,7 @@ export default function MovieDetail() {
               ...mockMovie,
               tagline: 'A cinematic masterpiece matching your vibe.',
               cast: ['Lead Actor', 'Supporting Actor', 'Featured Guest'],
-              trailerUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+              trailerUrl: null,
             });
           } else {
             throw new Error('Movie details not found.');

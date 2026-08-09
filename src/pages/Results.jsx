@@ -47,7 +47,7 @@ export default function Results() {
   const [error, setError] = useState(null);
   const [shuffleCount, setShuffleCount] = useState(0);
 
-  // Interactive Vibe Tuning State
+  // Interactive Vibe Tuning State (Clean Typographic Filters)
   const [vibeTuning, setVibeTuning] = useState({
     obscurity: 'all', // 'all' | 'hidden_gems' | 'mainstream'
     pacing: 'all',    // 'all' | 'slow' | 'brisk'
@@ -119,7 +119,7 @@ export default function Results() {
           const shuffled = shuffleArray(filtered).slice(0, 6);
           setMovies(shuffled);
           setLoading(false);
-        }, 500);
+        }, 400);
         return;
       }
 
@@ -127,7 +127,6 @@ export default function Results() {
         let rawMovies = [];
 
         if (aiReady) {
-          // Gemini AI recommendations flow with Vibe Tuning + Taste Anchors
           const moodLabel = selectedMood ? selectedMood.label : '';
           
           const shuffleSeed = shuffleCount > 0 
@@ -145,7 +144,6 @@ export default function Results() {
             watchlistTitles
           );
           
-          // Search each recommendation on TMDB in parallel
           const tmdbPromises = aiRecommendations.map(async (rec) => {
             const recType = rec.type || 'movie';
             let tmdbMovie = null;
@@ -213,7 +211,7 @@ export default function Results() {
         }
 
         if (rawMovies.length === 0) {
-          throw new Error('No matching movies found.');
+          throw new Error('No matching films found.');
         }
 
         const enrichedMovies = [];
@@ -228,7 +226,7 @@ export default function Results() {
           try {
             blurb = localStorage.getItem(cacheKey);
           } catch {
-            console.warn('localStorage read failed');
+            // localStorage read fallback
           }
 
           if (!blurb && i < 5 && isGeminiConfigured()) {
@@ -242,7 +240,7 @@ export default function Results() {
                 try {
                   localStorage.setItem(cacheKey, blurb);
                 } catch {
-                  console.warn('localStorage write failed');
+                  // localStorage write fallback
                 }
               }
               apiCallMade = true;
@@ -264,7 +262,7 @@ export default function Results() {
         sessionStorage.setItem('feelm_results_feeling', feeling || '');
         sessionStorage.setItem('feelm_results_type', type || '');
       } catch (err) {
-        console.error('Failed to load AI recommendations:', err);
+        console.error('Failed to load recommendations:', err);
         setError(err.message || 'Unable to retrieve film list.');
         const fallback = shuffleArray(placeholderMovies).slice(0, 6);
         setMovies(fallback);
@@ -287,13 +285,16 @@ export default function Results() {
     }));
   };
 
+  const hasActiveFilters = vibeTuning.obscurity !== 'all' || vibeTuning.pacing !== 'all' || vibeTuning.tone !== 'all' || vibeTuning.worldCinema !== 'all';
+
   const getDynamicTitle = () => {
     if (selectedMood) {
       return `Films for when you're feeling ${selectedMood.label.toLowerCase()}`;
     }
     if (feeling) {
       const cleanFeeling = feeling.split('Strictly avoid')[0].split('Only recommend')[0].trim();
-      return `Films matching "${cleanFeeling}"`;
+      const truncated = cleanFeeling.length > 45 ? `${cleanFeeling.slice(0, 45)}...` : cleanFeeling;
+      return `Films matching "${truncated}"`;
     }
     return 'Film recommendations';
   };
@@ -302,7 +303,7 @@ export default function Results() {
     <div className="page-container pt-20 pb-20">
       <div className="content-container">
         {/* Header Navigation */}
-        <div className="flex items-center justify-between mb-10 animate-fade-in">
+        <div className="flex items-center justify-between mb-8 animate-fade-in">
           <Link
             to="/"
             id="back-to-home"
@@ -311,136 +312,131 @@ export default function Results() {
             ← Back to moods
           </Link>
 
-          {/* Shuffle Button Top Right */}
+          {/* Shuffle Button */}
           <button
             onClick={handleShuffle}
             disabled={loading}
-            className="px-4 py-2 border border-cinema-700/50 hover:border-cinema-500 text-xs text-cinema-300 uppercase tracking-widest transition-colors duration-200 font-mono disabled:opacity-30 disabled:hover:border-cinema-700/50"
+            className="px-4 py-2 border border-cinema-700/50 hover:border-cinema-500 text-xs text-cinema-300 uppercase tracking-widest transition-colors duration-200 font-mono disabled:opacity-30 disabled:hover:border-cinema-700/50 cursor-pointer"
           >
-            {loading ? 'Refetching...' : 'Shuffle ↺'}
+            {loading ? 'Curating...' : 'Shuffle ↺'}
           </button>
         </div>
 
         {/* Dynamic Title */}
-        <div className="mb-8 animate-fade-in">
+        <div className="mb-6 animate-fade-in">
           <h1 className="editorial-title font-display font-medium text-cinema-300 max-w-3xl leading-tight">
             {getDynamicTitle()}
           </h1>
-          {error && (
-            <p className="text-xs font-mono text-cinema-500 mt-3 uppercase tracking-wide">
-              * Note: {error} (Curated collection loaded)
-            </p>
-          )}
         </div>
 
-        {/* Interactive Vibe Tuning Controls */}
-        <div className="mb-10 p-5 bg-cinema-900/60 border border-cinema-800/80 rounded-none animate-fade-in space-y-4">
+        {/* Minimalist Typographic Vibe Tuning Bar */}
+        <div className="mb-10 pb-6 border-b border-cinema-800/80 animate-fade-in space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-cinema-400 uppercase tracking-widest">
-              Vibe Tuning
+            <span className="text-[10px] font-mono text-cinema-500 uppercase tracking-widest">
+              Tune Vibe
             </span>
-            {(vibeTuning.obscurity !== 'all' || vibeTuning.pacing !== 'all' || vibeTuning.tone !== 'all' || vibeTuning.worldCinema !== 'all') && (
+            {hasActiveFilters && (
               <button
                 onClick={() => setVibeTuning({ obscurity: 'all', pacing: 'all', tone: 'all', worldCinema: 'all' })}
-                className="text-[11px] font-mono text-accent hover:underline uppercase tracking-wider"
+                className="text-[10px] font-mono text-accent hover:underline uppercase tracking-widest cursor-pointer"
               >
-                Reset Filters
+                Clear Filters
               </button>
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs font-mono">
-            {/* Obscurity / Discovery Pills */}
+          <div className="flex flex-wrap gap-2 text-[11px] font-mono tracking-wider">
+            {/* Obscurity / Discovery */}
             <button
               onClick={() => updateVibeFilter('obscurity', 'hidden_gems')}
-              className={`px-3 py-1.5 border transition-all duration-200 ${
+              className={`px-3 py-1.5 border transition-all duration-200 cursor-pointer select-none uppercase ${
                 vibeTuning.obscurity === 'hidden_gems'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+                  ? 'border-accent text-accent bg-accent/5'
+                  : 'border-cinema-800 text-cinema-400 hover:border-cinema-600 hover:text-cinema-300 bg-transparent'
               }`}
             >
-              ✨ Hidden Gems
+              Hidden Gems
             </button>
             <button
               onClick={() => updateVibeFilter('obscurity', 'mainstream')}
-              className={`px-3 py-1.5 border transition-all duration-200 ${
+              className={`px-3 py-1.5 border transition-all duration-200 cursor-pointer select-none uppercase ${
                 vibeTuning.obscurity === 'mainstream'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+                  ? 'border-accent text-accent bg-accent/5'
+                  : 'border-cinema-800 text-cinema-400 hover:border-cinema-600 hover:text-cinema-300 bg-transparent'
               }`}
             >
-              🎬 Acclaimed Classics
+              Classics
             </button>
 
-            {/* Pacing Pills */}
+            {/* Pacing */}
             <button
               onClick={() => updateVibeFilter('pacing', 'slow')}
-              className={`px-3 py-1.5 border transition-all duration-200 ${
+              className={`px-3 py-1.5 border transition-all duration-200 cursor-pointer select-none uppercase ${
                 vibeTuning.pacing === 'slow'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+                  ? 'border-accent text-accent bg-accent/5'
+                  : 'border-cinema-800 text-cinema-400 hover:border-cinema-600 hover:text-cinema-300 bg-transparent'
               }`}
             >
-              ☕ Meditative / Slow
+              Slow Burn
             </button>
             <button
               onClick={() => updateVibeFilter('pacing', 'brisk')}
-              className={`px-3 py-1.5 border transition-all duration-200 ${
+              className={`px-3 py-1.5 border transition-all duration-200 cursor-pointer select-none uppercase ${
                 vibeTuning.pacing === 'brisk'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+                  ? 'border-accent text-accent bg-accent/5'
+                  : 'border-cinema-800 text-cinema-400 hover:border-cinema-600 hover:text-cinema-300 bg-transparent'
               }`}
             >
-              ⚡ Brisk / Thrilling
+              Brisk Pace
             </button>
 
-            {/* Tone Pills */}
+            {/* Tone */}
             <button
               onClick={() => updateVibeFilter('tone', 'cozy')}
-              className={`px-3 py-1.5 border transition-all duration-200 ${
+              className={`px-3 py-1.5 border transition-all duration-200 cursor-pointer select-none uppercase ${
                 vibeTuning.tone === 'cozy'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+                  ? 'border-accent text-accent bg-accent/5'
+                  : 'border-cinema-800 text-cinema-400 hover:border-cinema-600 hover:text-cinema-300 bg-transparent'
               }`}
             >
-              ☁️ Cozy & Warm
+              Cozy & Warm
             </button>
             <button
               onClick={() => updateVibeFilter('tone', 'dark')}
-              className={`px-3 py-1.5 border transition-all duration-200 ${
+              className={`px-3 py-1.5 border transition-all duration-200 cursor-pointer select-none uppercase ${
                 vibeTuning.tone === 'dark'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+                  ? 'border-accent text-accent bg-accent/5'
+                  : 'border-cinema-800 text-cinema-400 hover:border-cinema-600 hover:text-cinema-300 bg-transparent'
               }`}
             >
-              🌑 Dark Noir
+              Dark Noir
             </button>
             <button
               onClick={() => updateVibeFilter('tone', 'mind-bending')}
-              className={`px-3 py-1.5 border transition-all duration-200 ${
+              className={`px-3 py-1.5 border transition-all duration-200 cursor-pointer select-none uppercase ${
                 vibeTuning.tone === 'mind-bending'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+                  ? 'border-accent text-accent bg-accent/5'
+                  : 'border-cinema-800 text-cinema-400 hover:border-cinema-600 hover:text-cinema-300 bg-transparent'
               }`}
             >
-              🌀 Mind-Bending
+              Mind-Bending
             </button>
 
-            {/* World Cinema Pill */}
+            {/* World Cinema */}
             <button
               onClick={() => updateVibeFilter('worldCinema', 'focus')}
-              className={`px-3 py-1.5 border transition-all duration-200 ${
+              className={`px-3 py-1.5 border transition-all duration-200 cursor-pointer select-none uppercase ${
                 vibeTuning.worldCinema === 'focus'
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+                  ? 'border-accent text-accent bg-accent/5'
+                  : 'border-cinema-800 text-cinema-400 hover:border-cinema-600 hover:text-cinema-300 bg-transparent'
               }`}
             >
-              🌍 World Cinema Focus
+              World Cinema
             </button>
           </div>
         </div>
 
-        {/* Dynamic Grid: 5 columns on desktop, 2 on mobile */}
+        {/* Dynamic Grid */}
         {loading ? (
           <SkeletonLoader />
         ) : (
@@ -452,7 +448,7 @@ export default function Results() {
               <div
                 key={`${movie.id}-${index}`}
                 className="animate-slide-up"
-                style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'both' }}
+                style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
               >
                 <MovieCard movie={movie} />
               </div>
