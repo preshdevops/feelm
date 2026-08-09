@@ -28,7 +28,10 @@ app.get('/', (req, res) => {
   res.json({ message: 'Feelm Express API server running on Cloudflare Workers.' });
 });
 
-// Create Express HTTP handler
+// Call app.listen so Node.js http module registers listener on PORT 5000 required by cloudflare:node
+app.listen(PORT);
+
+// Create Express HTTP handler for Cloudflare Workers
 const expressHandler = httpServerHandler({
   port: PORT,
   requestListener: app
@@ -72,7 +75,6 @@ export default {
       });
     } catch (err) {
       console.error('Cloudflare Worker Exception caught:', err);
-      // Prevent Error 1101 crashes and return clean JSON error with full CORS headers
       return new Response(
         JSON.stringify({ error: err.message || 'Worker server execution error' }),
         {
