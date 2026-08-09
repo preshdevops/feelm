@@ -1,9 +1,9 @@
-import express from 'express';
+import { Hono } from 'hono';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const router = express.Router();
+const router = new Hono();
 
 const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
 
@@ -18,15 +18,21 @@ const getBackdropUrl = (path, size = 'original') => {
 };
 
 /**
- * POST /api/movies/recommendations
+ * POST /recommendations
  * Gets movie recommendations (list of titles) from Gemini based on user mood/feeling text.
  */
-router.post('/recommendations', async (req, res) => {
-  const { mood, feelingText } = req.body;
+router.post('/recommendations', async (c) => {
+  let body = {};
+  try {
+    body = await c.req.json();
+  } catch (err) {
+    // Fallback if empty or invalid JSON
+  }
+  const { mood, feelingText } = body || {};
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
   if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_key_here') {
-    return res.status(500).json({ error: 'Gemini API Key is not configured on the server.' });
+    return c.json({ error: 'Gemini API Key is not configured on the server.' }, 500);
   }
 
   const prompt = `
@@ -100,7 +106,7 @@ router.post('/recommendations', async (req, res) => {
 
       const recommendations = JSON.parse(text.trim());
       if (Array.isArray(recommendations)) {
-        return res.json(recommendations);
+        return c.json(recommendations);
       }
       
       throw new Error('Gemini did not return an array.');
@@ -110,23 +116,29 @@ router.post('/recommendations', async (req, res) => {
     }
   }
 
-  return res.status(500).json({ error: lastError?.message || 'All Gemini model fallbacks failed.' });
+  return c.json({ error: lastError?.message || 'All Gemini model fallbacks failed.' }, 500);
 });
 
 /**
- * POST /api/movies/search
+ * POST /search
  * Searches TMDB for a movie by title.
  */
-router.post('/search', async (req, res) => {
-  const { title } = req.body;
+router.post('/search', async (c) => {
+  let body = {};
+  try {
+    body = await c.req.json();
+  } catch (err) {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+  const { title } = body || {};
   const TMDB_API_KEY = process.env.TMDB_API_KEY;
 
   if (!TMDB_API_KEY || TMDB_API_KEY === 'your_tmdb_key_here') {
-    return res.status(500).json({ error: 'TMDB API Key is not configured on the server.' });
+    return c.json({ error: 'TMDB API Key is not configured on the server.' }, 500);
   }
 
   if (!title) {
-    return res.status(400).json({ error: 'Title is required' });
+    return c.json({ error: 'Title is required' }, 400);
   }
 
   try {
@@ -137,25 +149,25 @@ router.post('/search', async (req, res) => {
     }
     const data = await response.json();
     if (data.results && data.results.length > 0) {
-      return res.json(data.results[0]);
+      return c.json(data.results[0]);
     }
-    return res.json(null);
+    return c.json(null);
   } catch (error) {
     console.error(`Backend: Error searching movie "${title}" on TMDB:`, error);
-    return res.status(500).json({ error: error.message });
+    return c.json({ error: error.message }, 500);
   }
 });
 
 /**
- * GET /api/movies/details/:id
+ * GET /details/:id
  * Fetches movie details, credits, and videos for a specific movie ID.
  */
-router.get('/details/:id', async (req, res) => {
-  const { id } = req.params;
+router.get('/details/:id', async (c) => {
+  const id = c.req.param('id');
   const TMDB_API_KEY = process.env.TMDB_API_KEY;
 
   if (!TMDB_API_KEY || TMDB_API_KEY === 'your_tmdb_key_here') {
-    return res.status(500).json({ error: 'TMDB API Key is not configured on the server.' });
+    return c.json({ error: 'TMDB API Key is not configured on the server.' }, 500);
   }
 
   try {
@@ -190,27 +202,33 @@ router.get('/details/:id', async (req, res) => {
       cast: movie.credits?.cast?.slice(0, 5).map((c) => c.name) || [],
     };
 
-    return res.json(formatted);
+    return c.json(formatted);
   } catch (error) {
     console.error(`Backend: Error fetching movie details for ID ${id}:`, error);
-    return res.status(500).json({ error: error.message });
+    return c.json({ error: error.message }, 500);
   }
 });
 
 /**
- * POST /api/movies/blurb
+ * POST /blurb
  * Generates custom AI vibe match blurb.
  */
-router.post('/blurb', async (req, res) => {
-  const { movie, mood, feeling } = req.body;
+router.post('/blurb', async (c) => {
+  let body = {};
+  try {
+    body = await c.req.json();
+  } catch (err) {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+  const { movie, mood, feeling } = body || {};
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
   if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_key_here') {
-    return res.status(500).json({ error: 'Gemini API Key is not configured on the server.' });
+    return c.json({ error: 'Gemini API Key is not configured on the server.' }, 500);
   }
 
   if (!movie || !movie.title) {
-    return res.status(400).json({ error: 'Movie is required' });
+    return c.json({ error: 'Movie is required' }, 400);
   }
 
   const prompt = `
@@ -268,7 +286,7 @@ router.post('/blurb', async (req, res) => {
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (text) {
-        return res.json({ blurb: text.trim() });
+        return c.json({ blurb: text.trim() });
       }
     } catch (error) {
       console.error(`Backend: Error with model ${model} in generateMovieBlurb:`, error);
@@ -276,7 +294,7 @@ router.post('/blurb', async (req, res) => {
     }
   }
 
-  return res.status(500).json({ error: lastError?.message || 'All models failed to generate blurb.' });
+  return c.json({ error: lastError?.message || 'All models failed to generate blurb.' }, 500);
 });
 
 export default router;

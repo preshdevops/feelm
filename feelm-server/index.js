@@ -1,7 +1,5 @@
-import { httpServerHandler } from 'cloudflare:node';
-import { createServer } from 'node:http';
-import express from 'express';
-import cors from 'cors';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import watchlistRoutes from './routes/watchlist.js';
@@ -9,50 +7,39 @@ import moviesRoutes from './routes/movies.js';
 
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 5000;
+const app = new Hono();
 
-// Configure CORS using the cors package before express.json() and routes
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'https://feelms.vercel.app',
+const corsOrigin = process.env.CORS_ORIGIN || 'https://feelms.vercel.app';
+
+app.use('*', cors({
+  origin: corsOrigin,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-};
-
-app.use(cors(corsOptions));
-
-// Body parser
-app.use(express.json());
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}));
 
 // Route mounts (supporting both /api/* and /* paths)
-app.use('/api/auth', authRoutes);
-app.use('/auth', authRoutes);
+app.route('/api/auth', authRoutes);
+app.route('/auth', authRoutes);
 
-app.use('/api/watchlist', watchlistRoutes);
-app.use('/watchlist', watchlistRoutes);
+app.route('/api/watchlist', watchlistRoutes);
+app.route('/watchlist', watchlistRoutes);
 
-app.use('/api/movies', moviesRoutes);
-app.use('/movies', moviesRoutes);
+app.route('/api/movies', moviesRoutes);
+app.route('/movies', moviesRoutes);
 
 // Health check endpoint
-app.get('/', (req, res) => {
-  res.json({ message: 'Feelm Express API server running on Cloudflare Workers.' });
+app.get('/', (c) => {
+  return c.json({ message: 'Feelm Express API server running on Cloudflare Workers.' });
 });
 
-// Global Express error-handling middleware
-app.use((err, req, res, next) => {
-  console.error('Express error handled:', err);
-  res.status(err.status || 500).json({
+// Global Hono error-handling middleware
+app.onError((err, c) => {
+  console.error('Hono error handled:', err);
+  const status = err.status || err.statusCode || 500;
+  return c.json({
     error: err.message || 'Internal Server Error',
-  });
+  }, status);
 });
 
-// Create real http.Server wrapping Express app and listen on PORT
-const server = createServer(app);
-server.listen(PORT);
-
-// Export httpServerHandler with port option directly
-export default httpServerHandler({
-  port: PORT,
-});
+export default app;

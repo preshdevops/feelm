@@ -1,4 +1,4 @@
-import express from 'express';
+import { Hono } from 'hono';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db/pool.js';
@@ -6,26 +6,33 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const router = express.Router();
+const router = new Hono();
 const JWT_SECRET = process.env.JWT_SECRET || 'a_long_random_string_change_this';
 
-// POST /api/auth/register
-router.post('/register', async (req, res) => {
-  const { email, password } = req.body;
+// POST /register
+router.post('/register', async (c) => {
+  let body;
+  try {
+    body = await c.req.json();
+  } catch (err) {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+
+  const { email, password } = body || {};
 
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+    return c.json({ error: 'Email and password are required' }, 400);
   }
 
   if (password.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    return c.json({ error: 'Password must be at least 8 characters' }, 400);
   }
 
   try {
     // Check if user already exists
     const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'Email is already registered' });
+      return c.json({ error: 'Email is already registered' }, 400);
     }
 
     // Hash password
@@ -47,32 +54,39 @@ router.post('/register', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    return res.status(201).json({
+    return c.json({
       token,
       user: {
         id: user.id,
         email: user.email
       }
-    });
+    }, 201);
   } catch (error) {
     console.error('Registration error:', error);
-    return res.status(500).json({ error: 'Database error during registration' });
+    return c.json({ error: 'Database error during registration' }, 500);
   }
 });
 
-// POST /api/auth/login
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+// POST /login
+router.post('/login', async (c) => {
+  let body;
+  try {
+    body = await c.req.json();
+  } catch (err) {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+
+  const { email, password } = body || {};
 
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+    return c.json({ error: 'Email and password are required' }, 400);
   }
 
   try {
     // Find user by email
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return c.json({ error: 'Invalid email or password' }, 401);
     }
 
     const user = result.rows[0];
@@ -80,7 +94,7 @@ router.post('/login', async (req, res) => {
     // Compare passwords
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return c.json({ error: 'Invalid email or password' }, 401);
     }
 
     // Generate JWT
@@ -90,7 +104,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    return res.json({
+    return c.json({
       token,
       user: {
         id: user.id,
@@ -99,7 +113,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    return res.status(500).json({ error: 'Database error during login' });
+    return c.json({ error: 'Database error during login' }, 500);
   }
 });
 
