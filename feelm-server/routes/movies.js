@@ -30,21 +30,25 @@ router.post('/recommendations', async (req, res) => {
   }
 
   const prompt = `
-    You are a premium film curator AI named "Feelm".
+    You are a premium film curator AI named "Feelm" with an A24 & Letterboxd sensibility.
     Based on the following request:
     Selected Mood Category: ${mood || 'None specified'}
     User's feeling description: "${feelingText || 'None specified'}"
     
-    Please recommend 5 to 7 movies that match this vibe.
+    Please recommend 6 movies that match this vibe.
+    
+    CRITICAL RULES:
+    1. STRICTLY AVOID repeating surface-level default AI picks (such as Amélie, Inception, Interstellar, The Grand Budapest Hotel, Parasite, Fight Club, or Shawshank Redemption) unless specifically requested.
+    2. Deliver a genuinely unexpected, deeply matching set of films balancing eras and world cinema (including non-Hollywood picks like Nollywood, Asian, French, European).
     
     You MUST respond with a valid JSON array of objects containing ONLY the "title" of the movie.
     Example format:
     [
       {
-        "title": "Interstellar"
+        "title": "Aftersun"
       },
       {
-        "title": "The Grand Budapest Hotel"
+        "title": "In the Mood for Love"
       }
     ]
     

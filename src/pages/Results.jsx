@@ -5,6 +5,7 @@ import { placeholderMovies } from '../utils/placeholderMovies';
 import { moods } from '../utils/moods';
 import { isTmdbConfigured, searchMovie, searchTV, getTrendingMovies } from '../utils/tmdb';
 import { isGeminiConfigured, getRecommendationsFromGemini, generateMovieBlurb } from '../utils/gemini';
+import useWatchlist from '../hooks/useWatchlist';
 
 // Helper to map TMDB genre IDs to strings
 const TMDB_GENRES = {
@@ -38,16 +39,27 @@ export default function Results() {
   const watching = searchParams.get('watching');
   const intent = searchParams.get('intent');
 
+  const { watchlist } = useWatchlist();
+  const watchlistTitles = watchlist ? watchlist.map((w) => w.movie_title) : [];
+
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [shuffleCount, setShuffleCount] = useState(0);
 
+  // Interactive Vibe Tuning State
+  const [vibeTuning, setVibeTuning] = useState({
+    obscurity: 'all', // 'all' | 'hidden_gems' | 'mainstream'
+    pacing: 'all',    // 'all' | 'slow' | 'brisk'
+    tone: 'all',      // 'all' | 'cozy' | 'dark' | 'mind-bending'
+    worldCinema: 'all'// 'all' | 'focus'
+  });
+
   const selectedMood = moods.find((m) => m.id === moodId);
 
   useEffect(() => {
     async function fetchVibeMovies() {
-      if (shuffleCount === 0) {
+      if (shuffleCount === 0 && vibeTuning.obscurity === 'all' && vibeTuning.pacing === 'all' && vibeTuning.tone === 'all' && vibeTuning.worldCinema === 'all') {
         const cachedResults = sessionStorage.getItem('feelm_results');
         const cachedMood = sessionStorage.getItem('feelm_results_mood') || '';
         const cachedFeeling = sessionStorage.getItem('feelm_results_feeling') || '';
@@ -79,16 +91,35 @@ export default function Results() {
       const tmdbOnly = isTmdbConfigured() && !isGeminiConfigured();
 
       if (!aiReady && !tmdbOnly) {
-        // Full Demo Mode (no keys) - Shuffle local mock array
+        // Smart fallback filtering on rich placeholder dataset
         setTimeout(() => {
-          const shuffled = shuffleArray(placeholderMovies);
+          let filtered = [...placeholderMovies];
+
+          if (moodId) {
+            const moodMatches = filtered.filter((m) => m.moods && m.moods.includes(moodId));
+            if (moodMatches.length >= 3) {
+              filtered = moodMatches;
+            }
+          }
+
+          if (vibeTuning.obscurity !== 'all') {
+            filtered = filtered.filter((m) => m.obscurity === vibeTuning.obscurity);
+          }
+          if (vibeTuning.pacing !== 'all') {
+            filtered = filtered.filter((m) => m.pacing === vibeTuning.pacing);
+          }
+          if (vibeTuning.tone !== 'all') {
+            filtered = filtered.filter((m) => m.tone === vibeTuning.tone);
+          }
+
+          if (filtered.length === 0) {
+            filtered = placeholderMovies;
+          }
+
+          const shuffled = shuffleArray(filtered).slice(0, 6);
           setMovies(shuffled);
-          sessionStorage.setItem('feelm_results', JSON.stringify(shuffled));
-          sessionStorage.setItem('feelm_results_mood', moodId || '');
-          sessionStorage.setItem('feelm_results_feeling', feeling || '');
-          sessionStorage.setItem('feelm_results_type', type || '');
           setLoading(false);
-        }, 600);
+        }, 500);
         return;
       }
 
@@ -96,12 +127,11 @@ export default function Results() {
         let rawMovies = [];
 
         if (aiReady) {
-          // Gemini AI recommendations flow
+          // Gemini AI recommendations flow with Vibe Tuning + Taste Anchors
           const moodLabel = selectedMood ? selectedMood.label : '';
           
-          // Seed the prompt with a shuffle marker if shuffling to force new results
           const shuffleSeed = shuffleCount > 0 
-            ? ` (Provide completely different suggestions than previous attempts. Shuffle key: ${Math.random()})` 
+            ? ` (Provide fresh recommendations avoiding previous suggestions. Seed: ${Math.random()})` 
             : '';
           
           const aiRecommendations = await getRecommendationsFromGemini(
@@ -110,10 +140,12 @@ export default function Results() {
             type,
             energy,
             watching,
-            intent
+            intent,
+            vibeTuning,
+            watchlistTitles
           );
           
-          // Search each recommendation on TMDB in parallel (using TMDB search)
+          // Search each recommendation on TMDB in parallel
           const tmdbPromises = aiRecommendations.map(async (rec) => {
             const recType = rec.type || 'movie';
             let tmdbMovie = null;
@@ -176,7 +208,6 @@ export default function Results() {
           const resolvedMovies = await Promise.all(tmdbPromises);
           rawMovies = resolvedMovies.filter(m => m !== null);
         } else if (tmdbOnly) {
-          // TMDB-only configuration (no Gemini key) - Fetch randomized page of trending
           const randomPage = Math.floor(Math.random() * 15) + 1;
           rawMovies = await getTrendingMovies(randomPage);
         }
@@ -185,14 +216,13 @@ export default function Results() {
           throw new Error('No matching movies found.');
         }
 
-        // Sequential blurb generation with 300ms delay & localStorage caching (first 5 movies only)
         const enrichedMovies = [];
         const moodLabel = selectedMood ? selectedMood.label : '';
         let apiCallMade = false;
 
         for (let i = 0; i < rawMovies.length; i++) {
           const movie = rawMovies[i];
-          const cacheKey = `feelm_blurb_${movie.id}`;
+          const cacheKey = `feelm_blurb_${movie.id}_${vibeTuning.obscurity}_${vibeTuning.tone}`;
           let blurb = null;
 
           try {
@@ -201,14 +231,13 @@ export default function Results() {
             console.warn('localStorage read failed');
           }
 
-          // Only generate blurbs for the first 5 movies if not in cache
           if (!blurb && i < 5 && isGeminiConfigured()) {
             if (apiCallMade) {
-              await new Promise((resolve) => setTimeout(resolve, 300));
+              await new Promise((resolve) => setTimeout(resolve, 250));
             }
 
             try {
-              blurb = await generateMovieBlurb(movie, moodLabel, feeling, energy, watching, intent);
+              blurb = await generateMovieBlurb(movie, moodLabel, feeling, energy, watching, intent, vibeTuning);
               if (blurb) {
                 try {
                   localStorage.setItem(cacheKey, blurb);
@@ -224,13 +253,12 @@ export default function Results() {
 
           enrichedMovies.push({
             ...movie,
-            reason: blurb || movie.overview // fallback to overview if blurb fails or AI is unavailable
+            reason: blurb || movie.overview
           });
 
-          // Update state progressively so that recommendations render sequentially!
           setMovies([...enrichedMovies]);
         }
-        // Save to sessionStorage
+
         sessionStorage.setItem('feelm_results', JSON.stringify(enrichedMovies));
         sessionStorage.setItem('feelm_results_mood', moodId || '');
         sessionStorage.setItem('feelm_results_feeling', feeling || '');
@@ -238,23 +266,25 @@ export default function Results() {
       } catch (err) {
         console.error('Failed to load AI recommendations:', err);
         setError(err.message || 'Unable to retrieve film list.');
-        // Graceful fallback to shuffled local placeholders
-        const fallback = shuffleArray(placeholderMovies);
+        const fallback = shuffleArray(placeholderMovies).slice(0, 6);
         setMovies(fallback);
-        sessionStorage.setItem('feelm_results', JSON.stringify(fallback));
-        sessionStorage.setItem('feelm_results_mood', moodId || '');
-        sessionStorage.setItem('feelm_results_feeling', feeling || '');
-        sessionStorage.setItem('feelm_results_type', type || '');
       } finally {
         setLoading(false);
       }
     }
 
     fetchVibeMovies();
-  }, [moodId, feeling, selectedMood, shuffleCount, type, energy, watching, intent]);
+  }, [moodId, feeling, selectedMood, shuffleCount, type, energy, watching, intent, vibeTuning]);
 
   const handleShuffle = () => {
     setShuffleCount((prev) => prev + 1);
+  };
+
+  const updateVibeFilter = (key, value) => {
+    setVibeTuning((prev) => ({
+      ...prev,
+      [key]: prev[key] === value ? 'all' : value,
+    }));
   };
 
   const getDynamicTitle = () => {
@@ -262,7 +292,6 @@ export default function Results() {
       return `Films for when you're feeling ${selectedMood.label.toLowerCase()}`;
     }
     if (feeling) {
-      // Clean up filters text from display title
       const cleanFeeling = feeling.split('Strictly avoid')[0].split('Only recommend')[0].trim();
       return `Films matching "${cleanFeeling}"`;
     }
@@ -273,7 +302,7 @@ export default function Results() {
     <div className="page-container pt-20 pb-20">
       <div className="content-container">
         {/* Header Navigation */}
-        <div className="flex items-center justify-between mb-12 animate-fade-in">
+        <div className="flex items-center justify-between mb-10 animate-fade-in">
           <Link
             to="/"
             id="back-to-home"
@@ -293,15 +322,122 @@ export default function Results() {
         </div>
 
         {/* Dynamic Title */}
-        <div className="mb-12 animate-fade-in">
+        <div className="mb-8 animate-fade-in">
           <h1 className="editorial-title font-display font-medium text-cinema-300 max-w-3xl leading-tight">
             {getDynamicTitle()}
           </h1>
           {error && (
             <p className="text-xs font-mono text-cinema-500 mt-3 uppercase tracking-wide">
-              * Note: {error} (Static curation loaded)
+              * Note: {error} (Curated collection loaded)
             </p>
           )}
+        </div>
+
+        {/* Interactive Vibe Tuning Controls */}
+        <div className="mb-10 p-5 bg-cinema-900/60 border border-cinema-800/80 rounded-none animate-fade-in space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono text-cinema-400 uppercase tracking-widest">
+              Vibe Tuning
+            </span>
+            {(vibeTuning.obscurity !== 'all' || vibeTuning.pacing !== 'all' || vibeTuning.tone !== 'all' || vibeTuning.worldCinema !== 'all') && (
+              <button
+                onClick={() => setVibeTuning({ obscurity: 'all', pacing: 'all', tone: 'all', worldCinema: 'all' })}
+                className="text-[11px] font-mono text-accent hover:underline uppercase tracking-wider"
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs font-mono">
+            {/* Obscurity / Discovery Pills */}
+            <button
+              onClick={() => updateVibeFilter('obscurity', 'hidden_gems')}
+              className={`px-3 py-1.5 border transition-all duration-200 ${
+                vibeTuning.obscurity === 'hidden_gems'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+              }`}
+            >
+              ✨ Hidden Gems
+            </button>
+            <button
+              onClick={() => updateVibeFilter('obscurity', 'mainstream')}
+              className={`px-3 py-1.5 border transition-all duration-200 ${
+                vibeTuning.obscurity === 'mainstream'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+              }`}
+            >
+              🎬 Acclaimed Classics
+            </button>
+
+            {/* Pacing Pills */}
+            <button
+              onClick={() => updateVibeFilter('pacing', 'slow')}
+              className={`px-3 py-1.5 border transition-all duration-200 ${
+                vibeTuning.pacing === 'slow'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+              }`}
+            >
+              ☕ Meditative / Slow
+            </button>
+            <button
+              onClick={() => updateVibeFilter('pacing', 'brisk')}
+              className={`px-3 py-1.5 border transition-all duration-200 ${
+                vibeTuning.pacing === 'brisk'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+              }`}
+            >
+              ⚡ Brisk / Thrilling
+            </button>
+
+            {/* Tone Pills */}
+            <button
+              onClick={() => updateVibeFilter('tone', 'cozy')}
+              className={`px-3 py-1.5 border transition-all duration-200 ${
+                vibeTuning.tone === 'cozy'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+              }`}
+            >
+              ☁️ Cozy & Warm
+            </button>
+            <button
+              onClick={() => updateVibeFilter('tone', 'dark')}
+              className={`px-3 py-1.5 border transition-all duration-200 ${
+                vibeTuning.tone === 'dark'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+              }`}
+            >
+              🌑 Dark Noir
+            </button>
+            <button
+              onClick={() => updateVibeFilter('tone', 'mind-bending')}
+              className={`px-3 py-1.5 border transition-all duration-200 ${
+                vibeTuning.tone === 'mind-bending'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+              }`}
+            >
+              🌀 Mind-Bending
+            </button>
+
+            {/* World Cinema Pill */}
+            <button
+              onClick={() => updateVibeFilter('worldCinema', 'focus')}
+              className={`px-3 py-1.5 border transition-all duration-200 ${
+                vibeTuning.worldCinema === 'focus'
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-cinema-800 bg-cinema-950/80 text-cinema-400 hover:border-cinema-700 hover:text-cinema-300'
+              }`}
+            >
+              🌍 World Cinema Focus
+            </button>
+          </div>
         </div>
 
         {/* Dynamic Grid: 5 columns on desktop, 2 on mobile */}
@@ -332,7 +468,7 @@ export default function Results() {
 function SkeletonLoader() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
-      {[...Array(5)].map((_, i) => (
+      {[...Array(6)].map((_, i) => (
         <div 
           key={i} 
           className="w-full aspect-[2/3] bg-cinema-900 border border-cinema-700/50 animate-pulse"
