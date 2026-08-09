@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useWatchlist from '../hooks/useWatchlist';
 
-export default function MovieCard({ movie, watchlistMode = false }) {
+export default function MovieCard({ movie, watchlistMode = false, moodId = null }) {
   const { user, setAuthModalOpen } = useAuth();
   const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
   
@@ -30,8 +30,8 @@ export default function MovieCard({ movie, watchlistMode = false }) {
 
   return (
     <Link
-      to={`/movie/${movie.id}`}
-      state={{ movie }}
+      to={`/movie/${movie.id}${moodId ? `?mood=${moodId}` : ''}`}
+      state={{ movie, mood: moodId }}
       id={`movie-card-${movie.id}`}
       className="relative block w-full aspect-[2/3] overflow-hidden group bg-cinema-800 border border-cinema-700/50 transition-all duration-300"
     >

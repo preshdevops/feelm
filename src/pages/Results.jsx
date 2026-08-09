@@ -450,7 +450,7 @@ export default function Results() {
                 className="animate-slide-up"
                 style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
               >
-                <MovieCard movie={movie} />
+                <MovieCard movie={movie} moodId={moodId} />
               </div>
             ))}
           </div>
