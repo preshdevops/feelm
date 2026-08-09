@@ -1,4 +1,5 @@
 import { httpServerHandler } from 'cloudflare:node';
+import { createServer } from 'node:http';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -47,8 +48,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Direct default export of httpServerHandler without wrapping
+// Create real http.Server wrapping Express app and listen on PORT
+const server = createServer(app);
+server.listen(PORT);
+
+// Export httpServerHandler with port option directly
 export default httpServerHandler({
   port: PORT,
-  requestListener: app,
 });
