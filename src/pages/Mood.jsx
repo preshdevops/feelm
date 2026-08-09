@@ -1,8 +1,15 @@
 import MoodPicker from '../components/MoodPicker';
+import MoodBackground from '../components/MoodBackground';
+import { MoodProvider, useMood } from '../context/MoodContext';
+import useMoodBackground from '../hooks/useMoodBackground';
 
-export default function Mood() {
+function MoodContent() {
+  const { activeMood } = useMood();
+  const { currentBackdropUrl } = useMoodBackground(activeMood);
+
   return (
     <div className="page-container bg-transparent min-h-screen flex flex-col justify-center relative">
+      <MoodBackground backdropUrl={currentBackdropUrl} />
       <div className="content-container py-16 md:py-24 space-y-12 animate-fade-in relative z-10">
         {/* Editorial Header */}
         <div className="text-center sm:text-left space-y-4 max-w-2xl">
@@ -20,5 +27,13 @@ export default function Mood() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Mood() {
+  return (
+    <MoodProvider>
+      <MoodContent />
+    </MoodProvider>
   );
 }
