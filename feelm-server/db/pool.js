@@ -1,54 +1,40 @@
 import pg from 'pg';
-import fs from 'fs';
-import path from 'path';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-
-dotenv.config();
 
 const { Pool } = pg;
 
-// Safe URL parsing for Cloudflare Workers bundled environment
-const currentMetaUrl = typeof import.meta !== 'undefined' && import.meta.url ? import.meta.url : null;
-const __filename = currentMetaUrl ? fileURLToPath(currentMetaUrl) : '';
-const __dirname = __filename ? path.dirname(__filename) : '';
+let cachedPool = null;
 
-let sslConfig;
-
-if (process.env.DB_CA_CERT) {
-  sslConfig = {
-    rejectUnauthorized: true,
-    ca: process.env.DB_CA_CERT
-  };
-} else {
-  try {
-    const caPath = ['./ca.crt', './ca.pem'].find(p => typeof fs !== 'undefined' && fs.existsSync && fs.existsSync(p));
-    if (caPath) {
-      sslConfig = {
-        rejectUnauthorized: true,
-        ca: fs.readFileSync(caPath).toString()
-      };
-    } else {
-      sslConfig = { rejectUnauthorized: false };
-    }
-  } catch (e) {
-    sslConfig = { rejectUnauthorized: false };
+/**
+ * Returns a cached or newly initialized pg.Pool using Cloudflare Hyperdrive's connection string.
+ * @param {object} env - Hono context env object (c.env) containing HYPERDRIVE binding.
+ * @returns {Pool}
+ */
+export function getPool(env) {
+  if (cachedPool) {
+    return cachedPool;
   }
-}
 
-export const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME || 'defaultdb',
-  user: process.env.DB_USER || 'avnadmin',
-  password: process.env.DB_PASSWORD,
-  ssl: sslConfig
-});
+  const connectionString = env?.HYPERDRIVE?.connectionString || process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    throw new Error('Hyperdrive connection string is not available.');
+  }
+
+  cachedPool = new Pool({
+    connectionString,
+  });
+
+  return cachedPool;
+}
 
 /**
  * Initializes the database tables if they do not exist.
+ * Must be called explicitly with a valid pool instance or env object.
+ * @param {Pool|object} poolOrEnv - pg.Pool instance or c.env object
  */
-export async function initDb() {
+export async function initDb(poolOrEnv) {
+  const pool = poolOrEnv && typeof poolOrEnv.query === 'function' ? poolOrEnv : getPool(poolOrEnv);
+
   const usersTableQuery = `
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -73,7 +59,7 @@ export async function initDb() {
 
   try {
     const client = await pool.connect();
-    console.log('Connected to Aiven PostgreSQL database successfully.');
+    console.log('Connected to PostgreSQL database successfully.');
     
     // Create users table
     await client.query(usersTableQuery);

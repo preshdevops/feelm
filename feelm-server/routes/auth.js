@@ -1,13 +1,9 @@
 import { Hono } from 'hono';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { pool } from '../db/pool.js';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { getPool } from '../db/pool.js';
 
 const router = new Hono();
-const JWT_SECRET = process.env.JWT_SECRET || 'a_long_random_string_change_this';
 
 // POST /register
 router.post('/register', async (c) => {
@@ -27,6 +23,9 @@ router.post('/register', async (c) => {
   if (password.length < 8) {
     return c.json({ error: 'Password must be at least 8 characters' }, 400);
   }
+
+  const JWT_SECRET = c.env?.JWT_SECRET || process.env.JWT_SECRET || 'a_long_random_string_change_this';
+  const pool = getPool(c.env);
 
   try {
     // Check if user already exists
@@ -81,6 +80,9 @@ router.post('/login', async (c) => {
   if (!email || !password) {
     return c.json({ error: 'Email and password are required' }, 400);
   }
+
+  const JWT_SECRET = c.env?.JWT_SECRET || process.env.JWT_SECRET || 'a_long_random_string_change_this';
+  const pool = getPool(c.env);
 
   try {
     // Find user by email

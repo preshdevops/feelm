@@ -1,9 +1,4 @@
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'a_long_random_string_change_this';
 
 export default async function authMiddleware(c, next) {
   const authHeader = c.req.header('authorization');
@@ -13,6 +8,7 @@ export default async function authMiddleware(c, next) {
   }
 
   const token = authHeader.split(' ')[1];
+  const JWT_SECRET = c.env?.JWT_SECRET || process.env.JWT_SECRET || 'a_long_random_string_change_this';
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);

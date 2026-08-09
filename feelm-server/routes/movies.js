@@ -1,7 +1,4 @@
 import { Hono } from 'hono';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const router = new Hono();
 
@@ -29,7 +26,7 @@ router.post('/recommendations', async (c) => {
     // Fallback if empty or invalid JSON
   }
   const { mood, feelingText } = body || {};
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  const GEMINI_API_KEY = c.env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
   if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_key_here') {
     return c.json({ error: 'Gemini API Key is not configured on the server.' }, 500);
@@ -131,7 +128,7 @@ router.post('/search', async (c) => {
     return c.json({ error: 'Invalid JSON body' }, 400);
   }
   const { title } = body || {};
-  const TMDB_API_KEY = process.env.TMDB_API_KEY;
+  const TMDB_API_KEY = c.env?.TMDB_API_KEY || process.env.TMDB_API_KEY;
 
   if (!TMDB_API_KEY || TMDB_API_KEY === 'your_tmdb_key_here') {
     return c.json({ error: 'TMDB API Key is not configured on the server.' }, 500);
@@ -164,7 +161,7 @@ router.post('/search', async (c) => {
  */
 router.get('/details/:id', async (c) => {
   const id = c.req.param('id');
-  const TMDB_API_KEY = process.env.TMDB_API_KEY;
+  const TMDB_API_KEY = c.env?.TMDB_API_KEY || process.env.TMDB_API_KEY;
 
   if (!TMDB_API_KEY || TMDB_API_KEY === 'your_tmdb_key_here') {
     return c.json({ error: 'TMDB API Key is not configured on the server.' }, 500);
@@ -221,7 +218,7 @@ router.post('/blurb', async (c) => {
     return c.json({ error: 'Invalid JSON body' }, 400);
   }
   const { movie, mood, feeling } = body || {};
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  const GEMINI_API_KEY = c.env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
   if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_key_here') {
     return c.json({ error: 'Gemini API Key is not configured on the server.' }, 500);

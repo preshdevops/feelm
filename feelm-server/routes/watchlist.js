@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { pool } from '../db/pool.js';
+import { getPool } from '../db/pool.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = new Hono();
@@ -13,6 +13,7 @@ router.get('/', async (c) => {
   const userId = user.id;
 
   try {
+    const pool = getPool(c.env);
     const result = await pool.query(
       'SELECT id, movie_id, movie_title, movie_poster, movie_rating, added_at FROM watchlist WHERE user_id = $1 ORDER BY added_at DESC',
       [userId]
@@ -43,6 +44,7 @@ router.post('/', async (c) => {
   }
 
   try {
+    const pool = getPool(c.env);
     // Insert with ON CONFLICT DO NOTHING or handle unique constraint
     const result = await pool.query(
       `INSERT INTO watchlist (user_id, movie_id, movie_title, movie_poster, movie_rating)
@@ -70,6 +72,7 @@ router.delete('/:movieId', async (c) => {
   }
 
   try {
+    const pool = getPool(c.env);
     const result = await pool.query(
       'DELETE FROM watchlist WHERE user_id = $1 AND movie_id = $2 RETURNING id',
       [userId, parseInt(movieId, 10)]
