@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 // Body parser
 app.use(express.json());
 
-// Support both /api/* and root /* route mounts for flexible frontend client URLs
+// Support both /api/* and root /* route mounts
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
 
@@ -28,16 +28,13 @@ app.get('/', (req, res) => {
   res.json({ message: 'Feelm Express API server running on Cloudflare Workers.' });
 });
 
-// Call app.listen so Node.js http module registers listener on PORT 5000 required by cloudflare:node
-app.listen(PORT);
-
-// Create Express HTTP handler for Cloudflare Workers
+// Native Cloudflare Workers Express HTTP handler
 const expressHandler = httpServerHandler({
   port: PORT,
   requestListener: app
 });
 
-// Export Cloudflare Worker fetch handler with guaranteed Edge CORS & Error Protection
+// Export Cloudflare Worker fetch handler with Edge CORS
 export default {
   async fetch(request, env, ctx) {
     const origin = request.headers.get('origin') || '*';
@@ -59,10 +56,10 @@ export default {
     }
 
     try {
-      // 2. Delegate request to Express app
+      // 2. Delegate request to Express handler
       const response = await expressHandler.fetch(request, env, ctx);
 
-      // 3. Guarantee CORS response headers match the requesting origin
+      // 3. Guarantee CORS response headers match requesting origin
       const headers = new Headers(response.headers);
       Object.entries(corsHeaders).forEach(([key, value]) => {
         headers.set(key, value);
