@@ -20,7 +20,7 @@ export default function App() {
         <WatchlistProvider>
 
         <BrowserRouter>
-          <div className="flex flex-col min-h-screen bg-cinema-950">
+          <div className="flex flex-col min-h-screen">
             <Navbar />
             <main className="flex-1">
               <Routes>
