@@ -3,7 +3,7 @@ import MoodBackground from '../components/MoodBackground';
 
 export default function Mood() {
   return (
-    <div className="page-container min-h-screen flex flex-col justify-center relative">
+    <div className="page-container bg-transparent min-h-screen flex flex-col justify-center relative">
       <MoodBackground />
       <div className="content-container py-16 md:py-24 space-y-12 animate-fade-in relative z-10">
         {/* Editorial Header */}
