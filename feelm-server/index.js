@@ -37,10 +37,11 @@ const expressHandler = httpServerHandler({
 // Export Cloudflare Worker fetch handler with Edge CORS
 export default {
   async fetch(request, env, ctx) {
-    const origin = request.headers.get('origin') || '*';
+    const reqOrigin = request.headers.get('origin');
+    const allowedOrigin = env.CORS_ORIGIN || reqOrigin || '*';
 
     const corsHeaders = {
-      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Origin': allowedOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
       'Access-Control-Allow-Credentials': 'true',
@@ -59,7 +60,7 @@ export default {
       // 2. Delegate request to Express handler
       const response = await expressHandler.fetch(request, env, ctx);
 
-      // 3. Guarantee CORS response headers match requesting origin
+      // 3. Guarantee CORS response headers match allowed origin
       const headers = new Headers(response.headers);
       Object.entries(corsHeaders).forEach(([key, value]) => {
         headers.set(key, value);
