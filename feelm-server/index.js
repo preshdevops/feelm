@@ -10,13 +10,18 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware for parsing JSON bodies
+// Body parser
 app.use(express.json());
 
-// Routes mounts
+// Support both /api/* and root /* route mounts for flexible frontend client URLs
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/watchlist', watchlistRoutes);
+app.use('/watchlist', watchlistRoutes);
+
 app.use('/api/movies', moviesRoutes);
+app.use('/movies', moviesRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {
@@ -29,39 +34,55 @@ const expressHandler = httpServerHandler({
   requestListener: app
 });
 
-// Export Cloudflare Worker fetch handler with guaranteed Edge CORS
+// Export Cloudflare Worker fetch handler with guaranteed Edge CORS & Error Protection
 export default {
   async fetch(request, env, ctx) {
     const origin = request.headers.get('origin') || '*';
 
-    // 1. Handle browser preflight OPTIONS requests directly at Cloudflare Edge
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+    };
+
+    // 1. Handle preflight OPTIONS requests directly at Cloudflare Edge
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': origin,
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-          'Access-Control-Allow-Credentials': 'true',
-          'Access-Control-Max-Age': '86400',
-        },
+        headers: corsHeaders,
       });
     }
 
-    // 2. Delegate request to Express app
-    const response = await expressHandler.fetch(request, env, ctx);
+    try {
+      // 2. Delegate request to Express app
+      const response = await expressHandler.fetch(request, env, ctx);
 
-    // 3. Guarantee CORS response headers match the requesting origin
-    const headers = new Headers(response.headers);
-    headers.set('Access-Control-Allow-Origin', origin);
-    headers.set('Access-Control-Allow-Credentials', 'true');
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+      // 3. Guarantee CORS response headers match the requesting origin
+      const headers = new Headers(response.headers);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        headers.set(key, value);
+      });
 
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-    });
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    } catch (err) {
+      console.error('Cloudflare Worker Exception caught:', err);
+      // Prevent Error 1101 crashes and return clean JSON error with full CORS headers
+      return new Response(
+        JSON.stringify({ error: err.message || 'Worker server execution error' }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          },
+        }
+      );
+    }
   }
 };
