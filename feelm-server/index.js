@@ -1,5 +1,6 @@
 import { httpServerHandler } from 'cloudflare:node';
 import express from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import watchlistRoutes from './routes/watchlist.js';
@@ -10,10 +11,20 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Configure CORS using the cors package before express.json() and routes
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || 'https://feelms.vercel.app',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+};
+
+app.use(cors(corsOptions));
+
 // Body parser
 app.use(express.json());
 
-// Support both /api/* and root /* route mounts
+// Route mounts (supporting both /api/* and /* paths)
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
 
@@ -28,61 +39,16 @@ app.get('/', (req, res) => {
   res.json({ message: 'Feelm Express API server running on Cloudflare Workers.' });
 });
 
-// Native Cloudflare Workers Express HTTP handler
-const expressHandler = httpServerHandler({
-  port: PORT,
-  requestListener: app
+// Global Express error-handling middleware
+app.use((err, req, res, next) => {
+  console.error('Express error handled:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+  });
 });
 
-// Export Cloudflare Worker fetch handler with Edge CORS
-export default {
-  async fetch(request, env, ctx) {
-    const reqOrigin = request.headers.get('origin');
-    const allowedOrigin = env.CORS_ORIGIN || reqOrigin || '*';
-
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': allowedOrigin,
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Max-Age': '86400',
-    };
-
-    // 1. Handle preflight OPTIONS requests directly at Cloudflare Edge
-    if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: corsHeaders,
-      });
-    }
-
-    try {
-      // 2. Delegate request to Express handler
-      const response = await expressHandler.fetch(request, env, ctx);
-
-      // 3. Guarantee CORS response headers match allowed origin
-      const headers = new Headers(response.headers);
-      Object.entries(corsHeaders).forEach(([key, value]) => {
-        headers.set(key, value);
-      });
-
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      });
-    } catch (err) {
-      console.error('Cloudflare Worker Exception caught:', err);
-      return new Response(
-        JSON.stringify({ error: err.message || 'Worker server execution error' }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        }
-      );
-    }
-  }
-};
+// Direct default export of httpServerHandler without wrapping
+export default httpServerHandler({
+  port: PORT,
+  requestListener: app,
+});
