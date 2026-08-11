@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { getPool } from '../db/pool.js';
 
 const router = new Hono();
 
@@ -185,11 +186,37 @@ router.post('/recommendations', async (c) => {
   } catch (err) {
     // Fallback if empty or invalid JSON
   }
-  const { mood, feelingText, exclude = [] } = body || {};
+  const { mood, feelingText, vibe, exclude = [] } = body || {};
   const GEMINI_API_KEY = c.env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
   if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_key_here') {
     return c.json({ error: 'Gemini API Key is not configured on the server.' }, 500);
+  }
+
+  const moodKey = typeof mood === 'string' ? mood.trim() : '';
+  const vibeKey = typeof vibe === 'string' ? vibe.trim() : '';
+  const requestExclude = Array.isArray(exclude)
+    ? exclude.filter((title) => typeof title === 'string' && title.trim())
+    : [];
+  let recentExcludes = [];
+
+  try {
+    const pool = getPool(c.env);
+    const result = await pool.query(
+      `SELECT title
+       FROM (
+         SELECT DISTINCT ON (LOWER(title)) title, created_at
+         FROM recent_recommendations
+         WHERE mood = $1 AND vibe = $2
+         ORDER BY LOWER(title), created_at DESC
+       ) recent_titles
+       ORDER BY created_at DESC
+       LIMIT 40`,
+      [moodKey, vibeKey]
+    );
+    recentExcludes = result.rows.map((row) => row.title).filter(Boolean);
+  } catch (error) {
+    console.error('Backend: Error fetching recent recommendation exclusions:', error);
   }
 
   // Random flavor nudges so repeated calls don't converge on the same "safe" picks
@@ -197,25 +224,33 @@ router.post('/recommendations', async (c) => {
   const flavors = ['a hidden gem', 'a cult favorite', 'a critically acclaimed but under-the-radar pick', 'an emotionally resonant festival darling'];
   const randomEra = eras[Math.floor(Math.random() * eras.length)];
   const randomFlavor = flavors[Math.floor(Math.random() * flavors.length)];
-  const seed = Math.random().toString(36).slice(2, 8); // forces a fresh completion, avoids cache-y determinism
+  const seed = crypto.randomUUID();
 
-  const excludeClause = exclude.length
-    ? `\nDo NOT recommend any of these titles (already shown to the user): ${JSON.stringify(exclude)}`
+  const recentExcludeClause = recentExcludes.length
+    ? `\nHard exclusion list for this mood + vibe combo: ${JSON.stringify(recentExcludes)}`
+    : '';
+  const requestExcludeClause = requestExclude.length
+    ? `\nAlso do NOT recommend any of these titles already shown in this user flow: ${JSON.stringify(requestExclude)}`
     : '';
 
   const prompt = `
     You are a premium film curator AI named "Feelm" with an A24 & Letterboxd sensibility.
     [session:${seed}]
+    Randomization seed: ${seed}
+    Era nudge: ${randomEra}
     Based on the following request:
-    Selected Mood Category: ${mood || 'None specified'}
+    Selected Mood Category: ${moodKey || 'None specified'}
+    Tune Vibe Filter: ${vibeKey || 'None specified'}
     User's feeling description: "${feelingText || 'None specified'}"
 
-    Please recommend 6 movies that match this vibe.
+    Please recommend 10 candidate movies that match this vibe.
     Lean toward ${randomFlavor}, and include at least one film from ${randomEra}.
 
     CRITICAL RULES:
     1. STRICTLY AVOID repeating surface-level default AI picks (such as Amélie, Inception, Interstellar, The Grand Budapest Hotel, Parasite, Fight Club, or Shawshank Redemption) unless specifically requested.
-    2. Deliver a genuinely unexpected, deeply matching set of films balancing eras and world cinema (including non-Hollywood picks like Nollywood, Asian, French, European).${excludeClause}
+    2. This prompt runs thousands of times, so do not cluster around your top 2-3 go-to answers for this mood/vibe. Push beyond the obvious safe recommendations.
+    3. Deliver a genuinely unexpected, deeply matching set of films balancing eras and world cinema (including non-Hollywood picks like Nollywood, Asian, French, European).
+    4. You must not include titles from the hard exclusion list because they were already shown recently to users with this same mood + vibe.${recentExcludeClause}${requestExcludeClause}
 
     You MUST respond with a valid JSON array of objects containing ONLY the "title" of the movie.
     Example format:
@@ -240,8 +275,8 @@ router.post('/recommendations', async (c) => {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
-            temperature: 0.9,       // was 0.7 — bumped for more variety
-            topP: 0.95,
+            temperature: 1.0,
+            topP: 0.97,
           },
         }),
       });
@@ -255,7 +290,31 @@ router.post('/recommendations', async (c) => {
 
       const recommendations = JSON.parse(text.trim());
       if (Array.isArray(recommendations)) {
-        return c.json(recommendations);
+        for (let i = recommendations.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [recommendations[i], recommendations[j]] = [recommendations[j], recommendations[i]];
+        }
+
+        const finalRecommendations = recommendations.slice(0, 6);
+        const finalTitles = finalRecommendations
+          .map((movie) => movie?.title)
+          .filter((title) => typeof title === 'string' && title.trim());
+
+        if (finalTitles.length) {
+          try {
+            const pool = getPool(c.env);
+            await pool.query(
+              `INSERT INTO recent_recommendations (mood, vibe, title)
+               SELECT $1, $2, unnest($3::text[])`,
+              [moodKey, vibeKey, finalTitles]
+            );
+            await pool.query("DELETE FROM recent_recommendations WHERE created_at < NOW() - INTERVAL '2 hours'");
+          } catch (error) {
+            console.error('Backend: Error recording recent recommendations:', error);
+          }
+        }
+
+        return c.json(finalRecommendations);
       }
       throw new Error('Gemini did not return an array.');
     } catch (error) {
