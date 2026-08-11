@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import MovieCard from '../components/MovieCard';
 import { placeholderMovies } from '../utils/placeholderMovies';
@@ -40,7 +40,10 @@ export default function Results() {
   const intent = searchParams.get('intent');
 
   const { watchlist } = useWatchlist();
-  const watchlistTitles = watchlist ? watchlist.map((w) => w.movie_title) : [];
+  const watchlistTitles = useMemo(
+    () => (watchlist ? watchlist.map((w) => w.movie_title) : []),
+    [watchlist]
+  );
 
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +59,7 @@ export default function Results() {
   });
 
   const selectedMood = moods.find((m) => m.id === moodId);
+  const vibeSignature = JSON.stringify(vibeTuning);
 
   useEffect(() => {
     async function fetchVibeMovies() {
@@ -64,12 +68,14 @@ export default function Results() {
         const cachedMood = sessionStorage.getItem('feelm_results_mood') || '';
         const cachedFeeling = sessionStorage.getItem('feelm_results_feeling') || '';
         const cachedType = sessionStorage.getItem('feelm_results_type') || '';
+        const cachedVibe = sessionStorage.getItem('feelm_results_vibe') || '';
 
         if (
           cachedResults &&
           cachedMood === (moodId || '') &&
           cachedFeeling === (feeling || '') &&
-          cachedType === (type || '')
+          cachedType === (type || '') &&
+          cachedVibe === vibeSignature
         ) {
           try {
             const parsed = JSON.parse(cachedResults);
@@ -261,6 +267,7 @@ export default function Results() {
         sessionStorage.setItem('feelm_results_mood', moodId || '');
         sessionStorage.setItem('feelm_results_feeling', feeling || '');
         sessionStorage.setItem('feelm_results_type', type || '');
+        sessionStorage.setItem('feelm_results_vibe', vibeSignature);
       } catch (err) {
         console.error('Failed to load recommendations:', err);
         setError(err.message || 'Unable to retrieve film list.');
@@ -272,7 +279,7 @@ export default function Results() {
     }
 
     fetchVibeMovies();
-  }, [moodId, feeling, selectedMood, shuffleCount, type, energy, watching, intent, vibeTuning]);
+  }, [moodId, feeling, selectedMood, shuffleCount, type, energy, watching, intent, vibeTuning, vibeSignature, watchlistTitles]);
 
   const handleShuffle = () => {
     setShuffleCount((prev) => prev + 1);
@@ -440,20 +447,27 @@ export default function Results() {
         {loading ? (
           <SkeletonLoader />
         ) : (
-          <div
-            id="movie-results-grid"
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6"
-          >
-            {movies.map((movie, index) => (
-              <div
-                key={`${movie.id}-${index}`}
-                className="animate-slide-up"
-                style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
-              >
-                <MovieCard movie={movie} moodId={moodId} />
-              </div>
-            ))}
-          </div>
+          <>
+            {error && (
+              <p className="mb-5 text-xs font-mono uppercase tracking-widest text-cinema-500">
+                {error}
+              </p>
+            )}
+            <div
+              id="movie-results-grid"
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6"
+            >
+              {movies.map((movie, index) => (
+                <div
+                  key={`${movie.id}-${index}`}
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
+                >
+                  <MovieCard movie={movie} moodId={moodId} />
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

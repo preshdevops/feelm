@@ -82,7 +82,11 @@ export default function MovieDetail() {
       try {
         const details = await getMovieDetails(id);
         if (details) {
-          setMovie(details);
+          setMovie((current) => ({
+            ...details,
+            reason: current?.reason,
+            type: current?.type,
+          }));
         } else {
           const mockMovie = placeholderMovies.find((m) => m.id === Number(id));
           if (mockMovie) {
@@ -150,7 +154,8 @@ export default function MovieDetail() {
       {/* Crisp Full-Bleed Film Backdrop Image */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         {/* Layer 1: Dark Cinematic Mask */}
-        <div className="absolute inset-0 bg-gradient-to-t from-cinema-950 via-cinema-950/80 to-cinema-950/40 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-cinema-950 via-cinema-950/90 to-cinema-950/60 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-cinema-950 via-cinema-950/80 to-cinema-950/35 z-10" />
         {/* Layer 2: Reactive Emotion Ambient Tint */}
         <div
           className="absolute inset-0 z-20 pointer-events-none transition-colors duration-500"
@@ -237,13 +242,13 @@ export default function MovieDetail() {
               {/* AI Vibe Match Quote */}
               {movie.reason && (
                 <blockquote
-                  className="border-l-2 pl-5 py-2 space-y-1 bg-cinema-900/40"
+                  className="border-l-2 p-5 space-y-2 bg-cinema-950/85 border-y border-r border-cinema-700/50 backdrop-blur-md shadow-2xl"
                   style={{ borderColor: themeAccent }}
                 >
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-cinema-500 block">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-cinema-300 block">
                     Curator Note
                   </span>
-                  <p className="font-display italic text-base sm:text-xl text-cinema-200 leading-relaxed font-normal">
+                  <p className="font-display italic text-base sm:text-xl text-white leading-relaxed font-normal drop-shadow-lg">
                     &ldquo;{movie.reason}&rdquo;
                   </p>
                 </blockquote>

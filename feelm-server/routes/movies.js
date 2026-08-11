@@ -5,6 +5,21 @@ const router = new Hono();
 
 const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash'];
 
+async function ensureRecentRecommendationsTable(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS recent_recommendations (
+      mood TEXT NOT NULL,
+      vibe TEXT NOT NULL,
+      title TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS recent_recommendations_mood_vibe_created_at_idx
+      ON recent_recommendations (mood, vibe, created_at DESC)
+  `);
+}
+
 const MOOD_GENRE_MAP = {
   happy: 35,
   sad: 18,
@@ -202,6 +217,7 @@ router.post('/recommendations', async (c) => {
 
   try {
     const pool = getPool(c.env);
+    await ensureRecentRecommendationsTable(pool);
     const result = await pool.query(
       `SELECT title
        FROM (
@@ -303,6 +319,7 @@ router.post('/recommendations', async (c) => {
         if (finalTitles.length) {
           try {
             const pool = getPool(c.env);
+            await ensureRecentRecommendationsTable(pool);
             await pool.query(
               `INSERT INTO recent_recommendations (mood, vibe, title)
                SELECT $1, $2, unnest($3::text[])`,
