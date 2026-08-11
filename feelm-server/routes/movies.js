@@ -185,36 +185,45 @@ router.post('/recommendations', async (c) => {
   } catch (err) {
     // Fallback if empty or invalid JSON
   }
-  const { mood, feelingText } = body || {};
+  const { mood, feelingText, exclude = [] } = body || {};
   const GEMINI_API_KEY = c.env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
   if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_key_here') {
     return c.json({ error: 'Gemini API Key is not configured on the server.' }, 500);
   }
 
+  // Random flavor nudges so repeated calls don't converge on the same "safe" picks
+  const eras = ['1970s-80s', '1990s', '2000s', '2010s', 'the last 3 years'];
+  const flavors = ['a hidden gem', 'a cult favorite', 'a critically acclaimed but under-the-radar pick', 'an emotionally resonant festival darling'];
+  const randomEra = eras[Math.floor(Math.random() * eras.length)];
+  const randomFlavor = flavors[Math.floor(Math.random() * flavors.length)];
+  const seed = Math.random().toString(36).slice(2, 8); // forces a fresh completion, avoids cache-y determinism
+
+  const excludeClause = exclude.length
+    ? `\nDo NOT recommend any of these titles (already shown to the user): ${JSON.stringify(exclude)}`
+    : '';
+
   const prompt = `
     You are a premium film curator AI named "Feelm" with an A24 & Letterboxd sensibility.
+    [session:${seed}]
     Based on the following request:
     Selected Mood Category: ${mood || 'None specified'}
     User's feeling description: "${feelingText || 'None specified'}"
-    
+
     Please recommend 6 movies that match this vibe.
-    
+    Lean toward ${randomFlavor}, and include at least one film from ${randomEra}.
+
     CRITICAL RULES:
     1. STRICTLY AVOID repeating surface-level default AI picks (such as Amélie, Inception, Interstellar, The Grand Budapest Hotel, Parasite, Fight Club, or Shawshank Redemption) unless specifically requested.
-    2. Deliver a genuinely unexpected, deeply matching set of films balancing eras and world cinema (including non-Hollywood picks like Nollywood, Asian, French, European).
-    
+    2. Deliver a genuinely unexpected, deeply matching set of films balancing eras and world cinema (including non-Hollywood picks like Nollywood, Asian, French, European).${excludeClause}
+
     You MUST respond with a valid JSON array of objects containing ONLY the "title" of the movie.
     Example format:
     [
-      {
-        "title": "Aftersun"
-      },
-      {
-        "title": "In the Mood for Love"
-      }
+      { "title": "Aftersun" },
+      { "title": "In the Mood for Love" }
     ]
-    
+
     Do not wrap your output in markdown code blocks. Return raw JSON only.
   `;
 
@@ -222,50 +231,32 @@ router.post('/recommendations', async (c) => {
 
   for (const model of GEMINI_MODELS) {
     const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-    
+
     try {
       const response = await fetch(apiURL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
+          contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
-            temperature: 0.7,
+            temperature: 0.9,       // was 0.7 — bumped for more variety
+            topP: 0.95,
           },
         }),
       });
 
-      if (response.status === 404) {
-        continue;
-      }
-
-      if (!response.ok) {
-        throw new Error(`Gemini API failed with status: ${response.status}`);
-      }
+      if (response.status === 404) continue;
+      if (!response.ok) throw new Error(`Gemini API failed with status: ${response.status}`);
 
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      if (!text) {
-        throw new Error('Empty response from Gemini API.');
-      }
+      if (!text) throw new Error('Empty response from Gemini API.');
 
       const recommendations = JSON.parse(text.trim());
       if (Array.isArray(recommendations)) {
         return c.json(recommendations);
       }
-      
       throw new Error('Gemini did not return an array.');
     } catch (error) {
       console.error(`Backend: Error with model ${model}:`, error);
