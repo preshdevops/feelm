@@ -88,6 +88,7 @@ export async function getRecommendationsFromGemini(
     body: JSON.stringify({
       mood,
       vibe,
+      obscurity,
       feelingText: [
         feelingText || '',
         typeInstruction,

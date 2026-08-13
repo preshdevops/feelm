@@ -191,8 +191,121 @@ router.post('/classify-mood', async (c) => {
 });
 
 /**
+ * Helper to build TMDB /discover/movie query URL from structured filters.
+ */
+function buildTmdbDiscoverUrl(filters, apiKey, page = 1) {
+  const baseUrl = 'https://api.themoviedb.org/3/discover/movie';
+  const params = new URLSearchParams();
+
+  params.append('api_key', apiKey);
+  params.append('language', 'en-US');
+  params.append('page', page.toString());
+  params.append('include_adult', 'false');
+  params.append('include_video', 'false');
+
+  if (filters.genre_ids && Array.isArray(filters.genre_ids) && filters.genre_ids.length > 0) {
+    params.append('with_genres', filters.genre_ids.join(','));
+  }
+
+  if (filters.excluded_genre_ids && Array.isArray(filters.excluded_genre_ids) && filters.excluded_genre_ids.length > 0) {
+    params.append('without_genres', filters.excluded_genre_ids.join(','));
+  }
+
+  const minVote = typeof filters.min_vote_average === 'number' ? filters.min_vote_average : 6.0;
+  const minCount = typeof filters.min_vote_count === 'number' ? filters.min_vote_count : 100;
+  params.append('vote_average.gte', minVote.toFixed(1));
+  params.append('vote_count.gte', minCount.toString());
+
+  if (filters.release_year_range?.gte) {
+    params.append('primary_release_date.gte', `${filters.release_year_range.gte}-01-01`);
+  }
+  if (filters.release_year_range?.lte) {
+    params.append('primary_release_date.lte', `${filters.release_year_range.lte}-12-31`);
+  }
+
+  if (filters.runtime_preference?.gte) {
+    params.append('with_runtime.gte', filters.runtime_preference.gte.toString());
+  }
+  if (filters.runtime_preference?.lte) {
+    params.append('with_runtime.lte', filters.runtime_preference.lte.toString());
+  }
+
+  params.append('sort_by', filters.sort_by || 'popularity.desc');
+
+  return `${baseUrl}?${params.toString()}`;
+}
+
+/**
+ * Ranks candidates from TMDB using a weighted scoring algorithm.
+ */
+function rankCandidates(candidates, filters, obscurityPreference = 'all') {
+  if (!candidates || !candidates.length) return [];
+
+  const maxPopularity = Math.max(...candidates.map((c) => c.popularity || 1), 1);
+  const targetKeywords = (filters.keyword_themes || []).map((k) => String(k).toLowerCase());
+
+  let wRating = 0.40;
+  let wSimilarity = 0.40;
+  let wPopularity = 0.20;
+
+  if (obscurityPreference === 'hidden_gems') {
+    wRating = 0.55;
+    wSimilarity = 0.35;
+    wPopularity = 0.10;
+  } else if (obscurityPreference === 'mainstream') {
+    wRating = 0.30;
+    wSimilarity = 0.30;
+    wPopularity = 0.40;
+  }
+
+  return candidates
+    .map((movie) => {
+      const voteAvg = movie.vote_average || 0;
+      const normRating = Math.min(Math.max((voteAvg - 5.0) / 5.0, 0), 1);
+      const normPopularity = Math.log(1 + (movie.popularity || 0)) / Math.log(1 + maxPopularity);
+
+      const overviewText = (movie.overview || '').toLowerCase();
+      const titleText = (movie.title || '').toLowerCase();
+      let keywordHits = 0;
+
+      targetKeywords.forEach((kw) => {
+        if (overviewText.includes(kw) || titleText.includes(kw)) {
+          keywordHits += 1;
+        }
+      });
+
+      const normSimilarity = targetKeywords.length > 0
+        ? Math.min(keywordHits / Math.min(targetKeywords.length, 3), 1.0)
+        : 0.5;
+
+      let obscurityJitter = 0;
+      if (obscurityPreference === 'hidden_gems' && (movie.popularity || 0) > 150) {
+        obscurityJitter = -0.25;
+      }
+
+      const randomJitter = (Math.random() - 0.5) * 0.05;
+      const finalScore =
+        (wSimilarity * normSimilarity) +
+        (wRating * normRating) +
+        (wPopularity * normPopularity) +
+        obscurityJitter +
+        randomJitter;
+
+      return {
+        ...movie,
+        score: finalScore,
+        matchScore: Math.round(finalScore * 100),
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
+/**
  * POST /recommendations
- * Gets movie recommendations (list of titles) from Gemini based on user mood/feeling text.
+ * 1. User mood input -> Gemini classifies into structured JSON parameters (NO titles generated).
+ * 2. Query TMDB /discover/movie with parameters to fetch candidate pool.
+ * 3. Rank candidates by weighted score & apply Postgres exclusion list.
+ * 4. Return top N TMDB candidates to user.
  */
 router.post('/recommendations', async (c) => {
   let body = {};
@@ -201,11 +314,16 @@ router.post('/recommendations', async (c) => {
   } catch (err) {
     // Fallback if empty or invalid JSON
   }
-  const { mood, feelingText, vibe, exclude = [] } = body || {};
+
+  const { mood, feelingText, vibe, obscurity = 'all', exclude = [] } = body || {};
   const GEMINI_API_KEY = c.env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  const TMDB_API_KEY = c.env?.TMDB_API_KEY || process.env.TMDB_API_KEY;
 
   if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_key_here') {
     return c.json({ error: 'Gemini API Key is not configured on the server.' }, 500);
+  }
+  if (!TMDB_API_KEY || TMDB_API_KEY === 'your_tmdb_key_here') {
+    return c.json({ error: 'TMDB API Key is not configured on the server.' }, 500);
   }
 
   const moodKey = typeof mood === 'string' ? mood.trim() : '';
@@ -213,8 +331,9 @@ router.post('/recommendations', async (c) => {
   const requestExclude = Array.isArray(exclude)
     ? exclude.filter((title) => typeof title === 'string' && title.trim())
     : [];
-  let recentExcludes = [];
 
+  // 1. Fetch Shared Exclusion List from Hyperdrive Postgres
+  const recentExcludes = new Set();
   try {
     const pool = getPool(c.env);
     await ensureRecentRecommendationsTable(pool);
@@ -227,59 +346,111 @@ router.post('/recommendations', async (c) => {
          ORDER BY LOWER(title), created_at DESC
        ) recent_titles
        ORDER BY created_at DESC
-       LIMIT 40`,
+       LIMIT 50`,
       [moodKey, vibeKey]
     );
-    recentExcludes = result.rows.map((row) => row.title).filter(Boolean);
+    result.rows.forEach((row) => {
+      if (row.title) recentExcludes.add(row.title.toLowerCase().trim());
+    });
   } catch (error) {
     console.error('Backend: Error fetching recent recommendation exclusions:', error);
   }
 
-  // Random flavor nudges so repeated calls don't converge on the same "safe" picks
+  requestExclude.forEach((title) => {
+    recentExcludes.add(title.toLowerCase().trim());
+  });
+
+  // Random flavor nudges so repeated calls don't produce static filter sets
   const eras = ['1970s-80s', '1990s', '2000s', '2010s', 'the last 3 years'];
-  const flavors = ['a hidden gem', 'a cult favorite', 'a critically acclaimed but under-the-radar pick', 'an emotionally resonant festival darling'];
+  const flavors = ['a hidden gem', 'a cult favorite', 'a critically acclaimed under-the-radar pick', 'an emotionally resonant indie darling'];
   const randomEra = eras[Math.floor(Math.random() * eras.length)];
   const randomFlavor = flavors[Math.floor(Math.random() * flavors.length)];
   const seed = crypto.randomUUID();
 
-  const recentExcludeClause = recentExcludes.length
-    ? `\nHard exclusion list for this mood + vibe combo: ${JSON.stringify(recentExcludes)}`
-    : '';
-  const requestExcludeClause = requestExclude.length
-    ? `\nAlso do NOT recommend any of these titles already shown in this user flow: ${JSON.stringify(requestExclude)}`
-    : '';
-
-  const prompt = `
-    You are a premium film curator AI named "Feelm" with an A24 & Letterboxd sensibility.
-    [session:${seed}]
-    Randomization seed: ${seed}
-    Era nudge: ${randomEra}
-    Based on the following request:
-    Selected Mood Category: ${moodKey || 'None specified'}
-    Tune Vibe Filter: ${vibeKey || 'None specified'}
-    User's feeling description: "${feelingText || 'None specified'}"
-
-    Please recommend 10 candidate movies that match this vibe.
-    Lean toward ${randomFlavor}, and include at least one film from ${randomEra}.
-
-    CRITICAL RULES:
-    1. STRICTLY AVOID repeating surface-level default AI picks (such as Amélie, Inception, Interstellar, The Grand Budapest Hotel, Parasite, Fight Club, or Shawshank Redemption) unless specifically requested.
-    2. This prompt runs thousands of times, so do not cluster around your top 2-3 go-to answers for this mood/vibe. Push beyond the obvious safe recommendations.
-    3. Deliver a genuinely unexpected, deeply matching set of films balancing eras and world cinema (including non-Hollywood picks like Nollywood, Asian, French, European).
-    4. You must not include titles from the hard exclusion list because they were already shown recently to users with this same mood + vibe.${recentExcludeClause}${requestExcludeClause}
-
-    You MUST respond with a valid JSON array of objects containing ONLY the "title" of the movie.
-    Example format:
-    [
-      { "title": "Aftersun" },
-      { "title": "In the Mood for Love" }
-    ]
-
-    Do not wrap your output in markdown code blocks. Return raw JSON only.
+  const validTmdbGenres = `
+  28: Action, 12: Adventure, 16: Animation, 35: Comedy, 80: Crime,
+  99: Documentary, 18: Drama, 10751: Family, 14: Fantasy, 36: History,
+  27: Horror, 10402: Music, 9648: Mystery, 10749: Romance, 878: Sci-Fi,
+  10770: TV Movie, 53: Thriller, 10752: War, 37: Western
   `;
 
+  const prompt = `
+    You are an expert film curator and database query translator for "Feelm".
+    Your task: Convert the user's emotional state, vibe selections, and text description into structured TMDB query parameters.
+    Session ID: ${seed}
+    Era Nudge: ${randomEra}
+    Flavor Nudge: ${randomFlavor}
+
+    Input Request:
+    - Selected Mood Category: ${moodKey || 'None specified'}
+    - Tune Vibe Filter: ${vibeKey || 'None specified'}
+    - User's feeling description: "${feelingText || 'None specified'}"
+
+    Available TMDB Genre Mapping:
+    ${validTmdbGenres}
+
+    CRITICAL RULES:
+    1. DO NOT generate movie titles, actor names, or director names.
+    2. Choose 1 to 3 TMDB genre IDs that best match the vibe.
+    3. Generate 4 to 8 thematic keywords in 'keyword_themes' (e.g. "isolation", "neon-lit", "melancholy", "coming-of-age").
+    4. Set 'min_vote_average' between 5.5 and 7.5 based on how niche/experimental the mood is.
+    5. Return raw JSON matching the JSON schema.
+  `;
+
+  const responseSchema = {
+    type: 'OBJECT',
+    properties: {
+      genre_ids: {
+        type: 'ARRAY',
+        items: { type: 'INTEGER' },
+        description: 'TMDB numeric genre IDs matching the user vibe',
+      },
+      excluded_genre_ids: {
+        type: 'ARRAY',
+        items: { type: 'INTEGER' },
+      },
+      keyword_themes: {
+        type: 'ARRAY',
+        items: { type: 'STRING' },
+        description: 'Atmospheric and thematic keywords for candidate scoring',
+      },
+      tone: {
+        type: 'STRING',
+        enum: ['cozy', 'dark', 'mind-bending', 'melancholic', 'lighthearted', 'tense', 'balanced'],
+      },
+      pacing: {
+        type: 'STRING',
+        enum: ['slow', 'brisk', 'moderate'],
+      },
+      min_vote_average: { type: 'NUMBER' },
+      min_vote_count: { type: 'INTEGER' },
+      release_year_range: {
+        type: 'OBJECT',
+        properties: {
+          gte: { type: 'INTEGER' },
+          lte: { type: 'INTEGER' },
+        },
+      },
+      runtime_preference: {
+        type: 'OBJECT',
+        properties: {
+          gte: { type: 'INTEGER' },
+          lte: { type: 'INTEGER' },
+        },
+      },
+      sort_by: {
+        type: 'STRING',
+        enum: ['popularity.desc', 'vote_average.desc', 'primary_release_date.desc'],
+      },
+      confidence: { type: 'NUMBER' },
+    },
+    required: ['genre_ids', 'keyword_themes', 'min_vote_average', 'min_vote_count', 'sort_by'],
+  };
+
+  let filters = null;
   let lastError = null;
 
+  // 2. Call Gemini to classify mood into structured JSON filters
   for (const model of GEMINI_MODELS) {
     const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
@@ -291,8 +462,8 @@ router.post('/recommendations', async (c) => {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
-            temperature: 1.0,
-            topP: 0.97,
+            responseSchema: responseSchema,
+            temperature: 0.7,
           },
         }),
       });
@@ -301,46 +472,97 @@ router.post('/recommendations', async (c) => {
       if (!response.ok) throw new Error(`Gemini API failed with status: ${response.status}`);
 
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error('Empty response from Gemini API.');
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) throw new Error('Empty response from Gemini API.');
 
-      const recommendations = JSON.parse(text.trim());
-      if (Array.isArray(recommendations)) {
-        for (let i = recommendations.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [recommendations[i], recommendations[j]] = [recommendations[j], recommendations[i]];
-        }
-
-        const finalRecommendations = recommendations.slice(0, 6);
-        const finalTitles = finalRecommendations
-          .map((movie) => movie?.title)
-          .filter((title) => typeof title === 'string' && title.trim());
-
-        if (finalTitles.length) {
-          try {
-            const pool = getPool(c.env);
-            await ensureRecentRecommendationsTable(pool);
-            await pool.query(
-              `INSERT INTO recent_recommendations (mood, vibe, title)
-               SELECT $1, $2, unnest($3::text[])`,
-              [moodKey, vibeKey, finalTitles]
-            );
-            await pool.query("DELETE FROM recent_recommendations WHERE created_at < NOW() - INTERVAL '2 hours'");
-          } catch (error) {
-            console.error('Backend: Error recording recent recommendations:', error);
-          }
-        }
-
-        return c.json(finalRecommendations);
+      filters = JSON.parse(rawText.trim());
+      if (filters && Array.isArray(filters.genre_ids)) {
+        break;
       }
-      throw new Error('Gemini did not return an array.');
     } catch (error) {
-      console.error(`Backend: Error with model ${model}:`, error);
+      console.error(`Backend: Error classifying mood with model ${model}:`, error);
       lastError = error;
     }
   }
 
-  return c.json({ error: lastError?.message || 'All Gemini model fallbacks failed.' }, 500);
+  // Fallback filters if Gemini call fails
+  if (!filters || !Array.isArray(filters.genre_ids)) {
+    filters = {
+      genre_ids: [18], // Drama fallback
+      keyword_themes: ['atmospheric', 'character study'],
+      min_vote_average: 6.0,
+      min_vote_count: 50,
+      sort_by: 'popularity.desc',
+    };
+  }
+
+  // 3. Harvest TMDB Candidates via /discover/movie (Pages 1 & 2)
+  const candidatePool = [];
+  const pagesToFetch = [1, 2];
+
+  await Promise.all(
+    pagesToFetch.map(async (page) => {
+      try {
+        const discoverUrl = buildTmdbDiscoverUrl(filters, TMDB_API_KEY, page);
+        const res = await fetch(discoverUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.results)) {
+            candidatePool.push(...data.results);
+          }
+        }
+      } catch (err) {
+        console.error(`Backend: TMDB Discover page ${page} fetch error:`, err);
+      }
+    })
+  );
+
+  if (candidatePool.length === 0) {
+    // Retry with broader discovery if page harvest returned zero
+    try {
+      const fallbackUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&sort_by=popularity.desc&vote_count.gte=100&page=1`;
+      const res = await fetch(fallbackUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.results)) {
+          candidatePool.push(...data.results);
+        }
+      }
+    } catch (err) {
+      console.error('Backend: TMDB Fallback discover error:', err);
+    }
+  }
+
+  // 4. Apply Exclusion List & Rank Candidates
+  const nonExcludedCandidates = candidatePool.filter(
+    (movie) => movie.title && !recentExcludes.has(movie.title.toLowerCase().trim())
+  );
+
+  const poolToRank = nonExcludedCandidates.length >= 6 ? nonExcludedCandidates : candidatePool;
+  const rankedCandidates = rankCandidates(poolToRank, filters, obscurity);
+  const finalRecommendations = rankedCandidates.slice(0, 6);
+
+  // 5. Record final recommendations in Postgres recent_recommendations table
+  const finalTitles = finalRecommendations
+    .map((m) => m.title)
+    .filter((t) => typeof t === 'string' && t.trim());
+
+  if (finalTitles.length) {
+    try {
+      const pool = getPool(c.env);
+      await ensureRecentRecommendationsTable(pool);
+      await pool.query(
+        `INSERT INTO recent_recommendations (mood, vibe, title)
+         SELECT $1, $2, unnest($3::text[])`,
+        [moodKey, vibeKey, finalTitles]
+      );
+      await pool.query("DELETE FROM recent_recommendations WHERE created_at < NOW() - INTERVAL '2 hours'");
+    } catch (error) {
+      console.error('Backend: Error recording recent recommendations:', error);
+    }
+  }
+
+  return c.json(finalRecommendations);
 });
 
 /**

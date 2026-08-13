@@ -150,67 +150,23 @@ export default function Results() {
             watchlistTitles
           );
           
-          const tmdbPromises = aiRecommendations.map(async (rec) => {
-            const recType = rec.type || 'movie';
-            let tmdbMovie = null;
-            let tmdbTV = null;
-
-            const shouldSearchTV = type === 'series' || (type === 'both' && recType !== 'movie');
-            const shouldSearchMovie = type === 'movie' || (type === 'both' && recType !== 'series');
-
-            if (shouldSearchMovie) {
-              tmdbMovie = await searchMovie(rec.title);
-            }
-            if (shouldSearchTV) {
-              tmdbTV = await searchTV(rec.title);
-            }
-
-            let match = null;
-            let matchedType = 'movie';
-
-            if (tmdbMovie && tmdbTV) {
-              if (recType === 'series') {
-                match = tmdbTV;
-                matchedType = 'series';
-              } else if (recType === 'movie') {
-                match = tmdbMovie;
-                matchedType = 'movie';
-              } else if (tmdbTV.popularity > tmdbMovie.popularity) {
-                match = tmdbTV;
-                matchedType = 'series';
-              } else {
-                match = tmdbMovie;
-                matchedType = 'movie';
-              }
-            } else if (tmdbTV) {
-              match = tmdbTV;
-              matchedType = 'series';
-            } else if (tmdbMovie) {
-              match = tmdbMovie;
-              matchedType = 'movie';
-            }
-
-            if (match) {
-              return {
-                id: match.id,
-                title: match.title || match.name,
-                year: (match.release_date || match.first_air_date) 
-                  ? new Date(match.release_date || match.first_air_date).getFullYear() 
-                  : 'N/A',
-                rating: match.vote_average ? Number(match.vote_average.toFixed(1)) : 'N/A',
-                genre: getGenreNames(match.genre_ids),
-                poster: match.poster_path 
-                  ? `https://image.tmdb.org/t/p/w500${match.poster_path}`
-                  : 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop',
-                overview: match.overview || 'No overview available.',
-                type: matchedType,
-              };
-            }
-            return null;
-          });
-
-          const resolvedMovies = await Promise.all(tmdbPromises);
-          rawMovies = resolvedMovies.filter(m => m !== null);
+          rawMovies = aiRecommendations.map((rec) => {
+            if (!rec) return null;
+            return {
+              id: rec.id,
+              title: rec.title || rec.name,
+              year: (rec.release_date || rec.first_air_date)
+                ? new Date(rec.release_date || rec.first_air_date).getFullYear()
+                : 'N/A',
+              rating: rec.vote_average ? Number(rec.vote_average.toFixed(1)) : 'N/A',
+              genre: getGenreNames(rec.genre_ids),
+              poster: rec.poster_path
+                ? `https://image.tmdb.org/t/p/w500${rec.poster_path}`
+                : 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop',
+              overview: rec.overview || 'No overview available.',
+              type: rec.name ? 'series' : 'movie',
+            };
+          }).filter(Boolean);
         } else if (tmdbOnly) {
           const randomPage = Math.floor(Math.random() * 15) + 1;
           rawMovies = await getTrendingMovies(randomPage);
