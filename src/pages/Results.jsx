@@ -191,7 +191,7 @@ export default function Results() {
             // localStorage read fallback
           }
 
-          if (!blurb && i < 5 && isGeminiConfigured()) {
+          if (!blurb && i < rawMovies.length && isGeminiConfigured()) {
             if (apiCallMade) {
               await new Promise((resolve) => setTimeout(resolve, 250));
             }
@@ -213,7 +213,7 @@ export default function Results() {
 
           enrichedMovies.push({
             ...movie,
-            reason: blurb || movie.overview
+            reason: blurb || 'Matched to your mood'
           });
 
           setMovies([...enrichedMovies]);

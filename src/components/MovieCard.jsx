@@ -86,9 +86,11 @@ export default function MovieCard({ movie, watchlistMode = false, moodId = null 
           </div>
 
           {/* Vibe/Reason Blurb */}
-          <p className="text-xs text-cinema-300 leading-relaxed font-light line-clamp-4">
-            {movie.reason ? movie.reason : movie.overview}
-          </p>
+          {movie.reason && (
+            <p className="text-xs text-cinema-300 leading-relaxed font-light line-clamp-4">
+              {movie.reason}
+            </p>
+          )}
         </div>
       </div>
     </Link>

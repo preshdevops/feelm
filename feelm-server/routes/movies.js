@@ -191,9 +191,41 @@ router.post('/classify-mood', async (c) => {
 });
 
 /**
+ * Resolves abstract keyword themes to numeric TMDB keyword IDs via GET /search/keyword.
+ */
+async function resolveKeywordIds(keywordThemes, apiKey) {
+  if (!Array.isArray(keywordThemes) || keywordThemes.length === 0 || !apiKey) {
+    return [];
+  }
+  try {
+    const promises = keywordThemes.map(async (theme) => {
+      if (!theme || typeof theme !== 'string' || !theme.trim()) return null;
+      try {
+        const url = `https://api.themoviedb.org/3/search/keyword?api_key=${apiKey}&query=${encodeURIComponent(theme.trim())}&page=1`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const topResult = data.results?.[0];
+        return topResult?.id || null;
+      } catch (err) {
+        console.error(`Backend: Error searching TMDB keyword for theme "${theme}":`, err);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(promises);
+    const validIds = results.filter((id) => typeof id === 'number');
+    return Array.from(new Set(validIds));
+  } catch (err) {
+    console.error('Backend: Error resolving keyword IDs:', err);
+    return [];
+  }
+}
+
+/**
  * Helper to build TMDB /discover/movie query URL from structured filters.
  */
-function buildTmdbDiscoverUrl(filters, apiKey, page = 1) {
+function buildTmdbDiscoverUrl(filters, apiKey, page = 1, resolvedKeywordIds = []) {
   const baseUrl = 'https://api.themoviedb.org/3/discover/movie';
   const params = new URLSearchParams();
 
@@ -209,6 +241,10 @@ function buildTmdbDiscoverUrl(filters, apiKey, page = 1) {
 
   if (filters.excluded_genre_ids && Array.isArray(filters.excluded_genre_ids) && filters.excluded_genre_ids.length > 0) {
     params.append('without_genres', filters.excluded_genre_ids.join(','));
+  }
+
+  if (Array.isArray(resolvedKeywordIds) && resolvedKeywordIds.length > 0) {
+    params.append('with_keywords', resolvedKeywordIds.join('|'));
   }
 
   const minVote = typeof filters.min_vote_average === 'number' ? filters.min_vote_average : 6.0;
@@ -242,20 +278,20 @@ function rankCandidates(candidates, filters, obscurityPreference = 'all') {
   if (!candidates || !candidates.length) return [];
 
   const maxPopularity = Math.max(...candidates.map((c) => c.popularity || 1), 1);
-  const targetKeywords = (filters.keyword_themes || []).map((k) => String(k).toLowerCase());
+  const currentYear = new Date().getFullYear();
 
-  let wRating = 0.40;
-  let wSimilarity = 0.40;
-  let wPopularity = 0.20;
+  let wRating = 0.55;
+  let wPopularity = 0.25;
+  let wRecency = 0.20;
 
   if (obscurityPreference === 'hidden_gems') {
-    wRating = 0.55;
-    wSimilarity = 0.35;
-    wPopularity = 0.10;
+    wRating = 0.65;
+    wPopularity = 0.15;
+    wRecency = 0.20;
   } else if (obscurityPreference === 'mainstream') {
-    wRating = 0.30;
-    wSimilarity = 0.30;
-    wPopularity = 0.40;
+    wRating = 0.40;
+    wPopularity = 0.45;
+    wRecency = 0.15;
   }
 
   return candidates
@@ -264,19 +300,8 @@ function rankCandidates(candidates, filters, obscurityPreference = 'all') {
       const normRating = Math.min(Math.max((voteAvg - 5.0) / 5.0, 0), 1);
       const normPopularity = Math.log(1 + (movie.popularity || 0)) / Math.log(1 + maxPopularity);
 
-      const overviewText = (movie.overview || '').toLowerCase();
-      const titleText = (movie.title || '').toLowerCase();
-      let keywordHits = 0;
-
-      targetKeywords.forEach((kw) => {
-        if (overviewText.includes(kw) || titleText.includes(kw)) {
-          keywordHits += 1;
-        }
-      });
-
-      const normSimilarity = targetKeywords.length > 0
-        ? Math.min(keywordHits / Math.min(targetKeywords.length, 3), 1.0)
-        : 0.5;
+      const releaseYear = movie.release_date ? new Date(movie.release_date).getFullYear() : 2000;
+      const normRecency = Math.min(Math.max((releaseYear - 1990) / (currentYear - 1990), 0), 1);
 
       let obscurityJitter = 0;
       if (obscurityPreference === 'hidden_gems' && (movie.popularity || 0) > 150) {
@@ -285,9 +310,9 @@ function rankCandidates(candidates, filters, obscurityPreference = 'all') {
 
       const randomJitter = (Math.random() - 0.5) * 0.05;
       const finalScore =
-        (wSimilarity * normSimilarity) +
         (wRating * normRating) +
         (wPopularity * normPopularity) +
+        (wRecency * normRecency) +
         obscurityJitter +
         randomJitter;
 
@@ -496,14 +521,17 @@ router.post('/recommendations', async (c) => {
     };
   }
 
-  // 3. Harvest TMDB Candidates via /discover/movie (Pages 1 & 2)
+  // 3. Resolve keyword themes to TMDB numeric keyword IDs
+  const resolvedKeywordIds = await resolveKeywordIds(filters.keyword_themes, TMDB_API_KEY);
+
+  // 4. Harvest TMDB Candidates via /discover/movie (Pages 1 & 2)
   const candidatePool = [];
   const pagesToFetch = [1, 2];
 
   await Promise.all(
     pagesToFetch.map(async (page) => {
       try {
-        const discoverUrl = buildTmdbDiscoverUrl(filters, TMDB_API_KEY, page);
+        const discoverUrl = buildTmdbDiscoverUrl(filters, TMDB_API_KEY, page, resolvedKeywordIds);
         const res = await fetch(discoverUrl);
         if (res.ok) {
           const data = await res.json();
@@ -685,8 +713,15 @@ router.post('/blurb', async (c) => {
     
     Here is the film's overview for reference: "${movie.overview}"
     
+    CRITICAL RULES:
+    - Do NOT summarize or restate the plot/premise. Do NOT describe what happens in the movie.
+    - Instead, describe the emotional experience of watching it — how it will make the user feel, what mood it will leave them in, why it resonates with their specific stated feeling. Write as a curator recommending an experience, not a synopsis.
+    
+    EXEMPLAR TARGETS:
+    - BAD (DO NOT DO THIS): "A grieving father searches for his son across the ocean."
+    - GOOD: "This will sit with you quietly — it's the kind of grief that doesn't need to be explained, just witnessed."
+    
     Guidelines:
-    - Focus on the vibe, theme, or mood matching.
     - Speak directly to the user (e.g. "This film's cozy atmosphere will help you unwind...").
     - Do not mention "Gemini", "AI", or "TMDB".
     - Keep it short (max 2 sentences, under 30 words).
