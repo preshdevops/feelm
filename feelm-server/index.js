@@ -35,19 +35,6 @@ app.use('*', async (c, next) => {
   return corsMiddleware(c, next);
 });
 
-// Explicit preflight OPTIONS handler
-app.options('*', (c) => {
-  const origin = c.req.header('Origin') || 'https://feelms.vercel.app';
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-      'Access-Control-Allow-Credentials': 'true',
-    },
-  });
-});
 
 // Route mounts (supporting both /api/* and /* paths)
 app.route('/api/auth', authRoutes);
